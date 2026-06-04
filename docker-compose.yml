@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: sistema_experto_app
+    volumes:
+      # Montaje de volumen para reflejar cambios en caliente durante el desarrollo
+      - .:/app
+    # Habilitamos la entrada interactiva de terminal para usar el adaptador CLI
+    stdin_open: true
+    tty: true
+    environment:
+      - PYTHONUNBUFFERED=1
+    # Comando por defecto para arrancar la aplicación en modo CLI
+    command: python src/main.py --cli

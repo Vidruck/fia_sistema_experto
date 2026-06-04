@@ -1,0 +1,6 @@
+# Dependencias del proyecto
+# PyQt6 se utiliza para la interfaz gráfica nativa (debe instalarse en el entorno host local)
+PyQt6==6.6.1
+
+# Bibliotecas para pruebas unitarias
+pytest==8.0.0

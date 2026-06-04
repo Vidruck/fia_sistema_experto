@@ -1,0 +1,119 @@
+{
+  "destinations": [
+    {
+      "id": "1",
+      "name": "Cabaña en el Bosque (Mazamitla)",
+      "description": "Una cabaña acogedora rodeada de naturaleza y pinos. Perfecta para desconectarse, respirar aire fresco y descansar frente a la chimenea.",
+      "budget": "Bajo",
+      "tags": ["bosque", "tranquilidad", "frio", "relajacion", "economico"]
+    },
+    {
+      "id": "2",
+      "name": "Playa del Carmen (Riviera Maya)",
+      "description": "Hermosas playas caribeñas de arena blanca y aguas templadas. Ideal para recargar energías, tomar el sol y disfrutar de la vida nocturna.",
+      "budget": "Alto",
+      "tags": ["playa", "sol", "calor", "relajacion", "diversion"]
+    },
+    {
+      "id": "3",
+      "name": "Trekking extremo en la Patagonia",
+      "description": "Aventura de senderismo en glaciares y montañas escarpadas en el fin del mundo. Diseñado para personas que buscan retos y contacto natural extremo.",
+      "budget": "Alto",
+      "tags": ["montaña", "aventura", "frio", "deporte", "naturaleza"]
+    },
+    {
+      "id": "4",
+      "name": "Mochilazo en la Huasteca Potosina",
+      "description": "Exploración de cascadas, ríos de color turquesa y abismos naturales. Un viaje lleno de adrenalina con bajo presupuesto.",
+      "budget": "Bajo-Medio",
+      "tags": ["aventura", "calor", "naturaleza", "agua", "economico"]
+    },
+    {
+      "id": "5",
+      "name": "Tour Cultural en Ciudad de México",
+      "description": "Visita a museos de clase mundial, zonas arqueológicas cercanas y degustación de gastronomía local variada.",
+      "budget": "Medio",
+      "tags": ["ciudad", "historia", "cultura", "gastronomia", "museos"]
+    },
+    {
+      "id": "6",
+      "name": "Pueblo Mágico del Tequila",
+      "description": "Recorrido por campos de agave azul, haciendas coloniales y cata de bebidas tradicionales. Una escapada rápida y cultural.",
+      "budget": "Medio",
+      "tags": ["campo", "historia", "gastronomia", "cultura", "relajacion"]
+    }
+  ],
+  "rules": [
+    {
+      "id": "rule_estresado_fin_semana",
+      "description": "Si el usuario está estresado y tiene un fin de semana, sugerir lugares tranquilos de bosque o campo con clima templado/frío.",
+      "conditions": {
+        "mood": "estresado",
+        "duration": "fin_de_semana"
+      },
+      "consequences": {
+        "recommended_tags": ["bosque", "tranquilidad", "relajacion"],
+        "weight_modifier": 2.5
+      }
+    },
+    {
+      "id": "rule_estresado_semana_completa",
+      "description": "Si el usuario está estresado y tiene una semana o más, sugerir un escape de relajación total en la playa.",
+      "conditions": {
+        "mood": "estresado",
+        "duration": "una_semana"
+      },
+      "consequences": {
+        "recommended_tags": ["playa", "sol", "relajacion"],
+        "weight_modifier": 2.0
+      }
+    },
+    {
+      "id": "rule_aventurero_largo",
+      "description": "Si el usuario busca aventura y tiene más de una semana, recomendar actividades intensas de montaña o naturaleza.",
+      "conditions": {
+        "mood": "aventurero",
+        "duration": "mas_de_una_semana"
+      },
+      "consequences": {
+        "recommended_tags": ["aventura", "montaña", "naturaleza"],
+        "weight_modifier": 3.0
+      }
+    },
+    {
+      "id": "rule_aventurero_corto",
+      "description": "Si el usuario busca aventura pero tiene poco tiempo, sugerir actividades de agua y calor de fácil acceso.",
+      "conditions": {
+        "mood": "aventurero",
+        "duration": "fin_de_semana"
+      },
+      "consequences": {
+        "recommended_tags": ["aventura", "agua", "naturaleza"],
+        "weight_modifier": 2.0
+      }
+    },
+    {
+      "id": "rule_aburrido_cualquier_tiempo",
+      "description": "Si el usuario está aburrido, sugerir destinos con alto contenido de diversión, cultura y museos para reactivarlo.",
+      "conditions": {
+        "mood": "aburrido"
+      },
+      "consequences": {
+        "recommended_tags": ["diversion", "cultura", "museos", "ciudad"],
+        "weight_modifier": 2.2
+      }
+    },
+    {
+      "id": "rule_cansado_corto",
+      "description": "Si el usuario está cansado y tiene un fin de semana, sugerir relajación rápida en campo con rica gastronomía.",
+      "conditions": {
+        "mood": "cansado",
+        "duration": "fin_de_semana"
+      },
+      "consequences": {
+        "recommended_tags": ["campo", "relajacion", "gastronomia"],
+        "weight_modifier": 2.0
+      }
+    }
+  ]
+}
