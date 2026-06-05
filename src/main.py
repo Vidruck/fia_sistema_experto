@@ -17,11 +17,14 @@ DOCENCIA (Para el equipo de desarrollo universitario):
       para que la aplicación nunca se rompa.
 """
 
-import sys
+# howufhehfvkevlrifvlirvlirlvrlflirhvliwherlvihrweli
 import argparse
-from src.config import KNOWLEDGE_BASE_PATH
+import sys
+
 from src.adapters.outbound.json_repository import JSONDestinationRepository
+from src.config import KNOWLEDGE_BASE_PATH
 from src.domain.services import VacationRecommendationService
+
 
 def main():
     # 1. Parsear los argumentos de línea de comandos
@@ -30,21 +33,21 @@ def main():
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
-        "--cli", 
-        action="store_true", 
-        help="Iniciar la aplicación directamente en la terminal (línea de comandos)."
+        "--cli",
+        action="store_true",
+        help="Iniciar la aplicación directamente en la terminal (línea de comandos).",
     )
     group.add_argument(
-        "--gui", 
-        action="store_true", 
-        help="Iniciar la aplicación con la interfaz gráfica nativa (PyQt6)."
+        "--gui",
+        action="store_true",
+        help="Iniciar la aplicación con la interfaz gráfica nativa (PyQt6).",
     )
     args = parser.parse_args()
 
     # 2. Inicializar los adaptadores de salida y servicios (Inyección de Dependencias)
     # Creamos el adaptador de persistencia JSON
     repositorio = JSONDestinationRepository(KNOWLEDGE_BASE_PATH)
-    
+
     # Inyectamos el adaptador de salida en el puerto de entrada (caso de uso)
     servicio = VacationRecommendationService(repositorio)
 
@@ -56,11 +59,14 @@ def main():
             # Intentamos importar y ejecutar la interfaz gráfica PyQt6
             print("[INFO] Intentando iniciar la interfaz gráfica PyQt6...")
             from src.adapters.inbound.pyqt_app.app import iniciar_gui
+
             iniciar_gui(servicio)
         except (ImportError, Exception) as err:
             # Si falla la carga de PyQt6 (por ejemplo, en un contenedor Docker sin entorno visual),
             # avisamos al usuario y degradamos la ejecución elegantemente al modo consola (CLI).
-            print(f"\n[ADVERTENCIA] No se pudo cargar la interfaz gráfica (Falta PyQt6 o no hay pantalla activa).")
+            print(
+                f"\n[ADVERTENCIA] No se pudo cargar la interfaz gráfica (Falta PyQt6 o no hay pantalla activa)."
+            )
             print(f"Detalle del error: {err}")
             print("[INFO] Cambiando automáticamente al modo de consola (CLI)...")
             modo_cli = True
@@ -68,8 +74,10 @@ def main():
     # Ejecución en modo CLI (Consola)
     if modo_cli:
         from src.adapters.inbound.cli import CLIAdapter
+
         adaptador_cli = CLIAdapter(servicio)
         adaptador_cli.iniciar()
+
 
 if __name__ == "__main__":
     main()
