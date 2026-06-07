@@ -204,14 +204,198 @@ class MainWindow(QMainWindow):
         welcome_layout.addWidget(btn_inicio)
         welcome_layout.addStretch()
         btn_inicio.clicked.connect(
-            lambda: self.stack.setCurrentIndex(1)
-        )
-        self.stack.addWidget(welcome_page)   
+        lambda: self.stack.setCurrentIndex(1)
+      )
         
+        self.stack.addWidget(welcome_page)   
+       
         # ================= PÁGINA PRINCIPAL DEL SISTEMA =================
 
         main_page = QWidget()
-        self.stack.addWidget(main_page)
+        self.stack.insertWidget(3, main_page)
+        # ================= PANTALLA ¿CON QUIÉN VIAJAS? =================
+
+        travel_page = QWidget()
+        travel_layout = QVBoxLayout(travel_page)
+
+        travel_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        travel_layout.setSpacing(20)
+
+        titulo2 = QLabel("¿Con quién vas a viajar?")
+        titulo2.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        titulo2.setStyleSheet("""
+            color:white;
+            font-size:28px;
+            font-weight:bold;
+        """)
+
+        sub2 = QLabel("Selecciona una opción")
+        sub2.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        sub2.setStyleSheet("""
+            color:#b0b0b0;
+            font-size:15px;
+        """)
+
+        travel_layout.addStretch()
+        travel_layout.addWidget(titulo2)
+        travel_layout.addWidget(sub2)
+        travel_layout.addSpacing(30)
+
+        fila1 = QHBoxLayout()
+
+        btn_solo = QPushButton("🧍\n\nSolo")
+        btn_pareja = QPushButton("❤️\n\nPareja")
+        btn_familia = QPushButton("👨‍👩‍👧\n\nFamilia")
+
+        for b in [btn_solo, btn_pareja, btn_familia]:
+            b.setFixedSize(180,150)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setStyleSheet("""
+            QPushButton{
+                background:#2b2d42;
+                color:white;
+                border-radius:18px;
+                font-size:18px;
+                font-weight:bold;
+            }
+            QPushButton:hover{
+                background:#11c5c6;
+            }
+            """)
+
+        fila1.addWidget(btn_solo)
+        fila1.addWidget(btn_pareja)
+        fila1.addWidget(btn_familia)
+
+        travel_layout.addLayout(fila1)
+
+        btn_amigos = QPushButton("👥\n\nAmigos")
+        btn_amigos.setFixedSize(250,150)
+        btn_amigos.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_amigos.setStyleSheet("""
+        QPushButton{
+            background:#2b2d42;
+            color:white;
+            border-radius:18px;
+            font-size:18px;
+            font-weight:bold;
+        }
+        QPushButton:hover{
+            background:#11c5c6;
+        }
+        """)
+
+        travel_layout.addSpacing(15)
+        travel_layout.addWidget(btn_amigos, alignment=Qt.AlignmentFlag.AlignCenter)
+        travel_layout.addStretch()
+
+        self.stack.insertWidget(1, travel_page)
+        # ================= PANTALLA ESCAPADA ROMÁNTICA =================
+
+        romantic_page = QWidget()
+        romantic_layout = QVBoxLayout(romantic_page)
+
+        btn_back = QPushButton("← Volver")
+        btn_back.setStyleSheet("""
+        QPushButton{
+            background:transparent;
+            color:#5ce1e6;
+            border:none;
+            font-size:15px;
+        }
+        """)
+        btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        lbl_categoria = QLabel("❤️  Pareja")
+        lbl_categoria.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_categoria.setStyleSheet("""
+        background:#134f53;
+        color:white;
+        padding:8px;
+        border-radius:15px;
+        font-size:16px;
+        font-weight:bold;
+        """)
+
+        titulo3 = QLabel("¿Qué tipo de escapada\nromántica prefieren?")
+        titulo3.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        titulo3.setStyleSheet("""
+        color:white;
+        font-size:28px;
+        font-weight:bold;
+        """)
+
+        romantic_layout.addWidget(btn_back, alignment=Qt.AlignmentFlag.AlignLeft)
+        romantic_layout.addSpacing(10)
+        romantic_layout.addWidget(lbl_categoria)
+        romantic_layout.addSpacing(25)
+        romantic_layout.addWidget(titulo3)
+        romantic_layout.addSpacing(35)
+
+        fila_romance = QHBoxLayout()
+
+        btn_romantica = QPushButton("🌴\n\nEscapada\nromántica")
+        btn_aventura = QPushButton("🏕️\n\nAventura\njuntos")
+        btn_relax = QPushButton("🌊\n\nRelax y\nbienestar")
+        btn_ciudad = QPushButton("🌆\n\nCiudad y\nencanto")
+
+        for b in [btn_romantica, btn_aventura, btn_relax, btn_ciudad]:
+            b.setFixedSize(150,170)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setStyleSheet("""
+            QPushButton{
+                background:#2b2d42;
+                color:white;
+                border:1px solid #11c5c6;
+                border-radius:18px;
+                font-size:16px;
+                font-weight:bold;
+            }
+            QPushButton:hover{
+                background:#11c5c6;
+            }
+            """)
+
+            fila_romance.addWidget(b)
+
+        romantic_layout.addLayout(fila_romance)
+        romantic_layout.addStretch()
+
+        self.stack.insertWidget(2, romantic_page)
+
+        btn_pareja.clicked.connect(
+            lambda: self.stack.setCurrentIndex(2)
+        )
+
+        btn_back.clicked.connect(
+            lambda: self.stack.setCurrentIndex(1)
+        )
+        btn_romantica.clicked.connect(
+             lambda: self.stack.setCurrentIndex(3)
+ )
+
+        btn_aventura.clicked.connect(
+            lambda: self.stack.setCurrentIndex(3)
+        )
+
+        btn_relax.clicked.connect(
+            lambda: self.stack.setCurrentIndex(3)
+        )
+
+        btn_ciudad.clicked.connect(
+            lambda: self.stack.setCurrentIndex(3)
+        )
+        btn_solo.clicked.connect(
+            lambda: self.stack.setCurrentIndex(2)
+        )
+
+        btn_familia.clicked.connect(
+            lambda: self.stack.setCurrentIndex(2)
+        )
+
+        btn_amigos.clicked.connect(
+            lambda: self.stack.setCurrentIndex(2)
+        )
 
         main_layout = QHBoxLayout(main_page)
         main_layout.setContentsMargins(25, 25, 25, 25)
