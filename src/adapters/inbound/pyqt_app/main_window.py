@@ -15,8 +15,9 @@ DOCENCIA (Para el equipo de desarrollo universitario):
 """
 
 from PyQt6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
-    QLabel, QComboBox, QPushButton, QTextBrowser, QMessageBox
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QComboBox, QPushButton, QTextBrowser,
+    QMessageBox, QStackedWidget
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon, QFont
@@ -125,7 +126,94 @@ class MainWindow(QMainWindow):
         central_widget = QWidget()
         central_widget.setObjectName("centralWidget")
         self.setCentralWidget(central_widget)
-        main_layout = QHBoxLayout(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Contenedor de pantallas
+        self.stack = QStackedWidget()
+        main_layout.addWidget(self.stack)
+        main_layout.setContentsMargins(25, 25, 25, 25)
+        main_layout.setSpacing(30)
+     # ================= PANTALLA DE BIENVENIDA =================
+
+        welcome_page = QWidget()
+        welcome_layout = QVBoxLayout(welcome_page)
+
+        welcome_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        welcome_layout.setSpacing(18)
+
+        titulo = QLabel("ViajaIA")
+        titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        titulo.setStyleSheet("""
+            color:#5ce1e6;
+            font-size:34px;
+            font-weight:bold;
+        """)
+
+        subtitulo = QLabel("Tu asistente inteligente de viajes")
+        subtitulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        subtitulo.setStyleSheet("""
+            color:white;
+            font-size:16px;
+        """)
+
+        robot = QLabel("🤖")
+        robot.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        robot.setStyleSheet("""
+            font-size:60px;
+        """)
+
+        texto = QLabel(
+            "Cuéntame qué tienes en mente\n"
+            "y yo encontraré el viaje perfecto\n"
+            "para ti."
+        )
+
+        texto.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        texto.setStyleSheet("""
+            color:white;
+            font-size:20px;
+            line-height:1.4;
+        """)
+
+        btn_inicio = QPushButton("Comenzar")
+        btn_inicio.setFixedHeight(55)
+        btn_inicio.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_inicio.setStyleSheet("""
+        QPushButton{
+            background:#11c5c6;
+            color:white;
+            border:none;
+            border-radius:25px;
+            font-size:18px;
+            font-weight:bold;
+            padding:10px;
+        }
+        QPushButton:hover{
+            background:#19d8d9;
+        }
+        """)
+
+        welcome_layout.addStretch()
+        welcome_layout.addWidget(titulo)
+        welcome_layout.addWidget(subtitulo)
+        welcome_layout.addSpacing(25)
+        welcome_layout.addWidget(robot)
+        welcome_layout.addWidget(texto)
+        welcome_layout.addSpacing(30)
+        welcome_layout.addWidget(btn_inicio)
+        welcome_layout.addStretch()
+        btn_inicio.clicked.connect(
+            lambda: self.stack.setCurrentIndex(1)
+        )
+        self.stack.addWidget(welcome_page)   
+        
+        # ================= PÁGINA PRINCIPAL DEL SISTEMA =================
+
+        main_page = QWidget()
+        self.stack.addWidget(main_page)
+
+        main_layout = QHBoxLayout(main_page)
         main_layout.setContentsMargins(25, 25, 25, 25)
         main_layout.setSpacing(30)
 
