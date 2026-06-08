@@ -284,6 +284,27 @@ class MainWindow(QMainWindow):
 
     def _poblar_destinos_dinamicos(self):
         """Limpia y repuebla las tarjetas de destinos con resultados del motor de inferencia."""
+        # Actualizar el subtítulo con el contexto detectado por el motor
+        mood_str, duration_str = self._mapear_selecciones()
+        mapa_mood_legible = {
+            'relajado':   '🌴 Relajación',
+            'aventurero': '⛰️ Aventura',
+            'aburrido':   '🏛️ Cultura / Diversión',
+            'estresado':  '🌿 Tranquilidad',
+            'cansado':    '🛌 Descanso',
+        }
+        mapa_dur_legible = {
+            'fin_de_semana':     'fin de semana',
+            'una_semana':        '4–7 días',
+            'mas_de_una_semana': 'más de una semana',
+        }
+        mood_legible = mapa_mood_legible.get(mood_str, mood_str)
+        dur_legible  = mapa_dur_legible.get(duration_str, duration_str)
+        self.lbl_destinos_sub.setText(
+            f"Perfil detectado: {mood_legible}  •  {dur_legible}\n"
+            f"↓ Ordenados por compatibilidad con tus preferencias"
+        )
+
         # Limpiar el contenedor de tarjetas actual
         while self.destinos_cards_layout.count():
             item = self.destinos_cards_layout.takeAt(0)
@@ -823,11 +844,11 @@ class MainWindow(QMainWindow):
 
         titulo = QLabel("🤖 ¡Tengo opciones perfectas para ustedes!")
         titulo.setStyleSheet("color:white; font-size:24px; font-weight:bold;")
-        sub = QLabel("Basadas en sus preferencias encontré\nestos destinos ideales.")
-        sub.setStyleSheet("color:#cdd6f4; font-size:15px;")
+        self.lbl_destinos_sub = QLabel("Basadas en sus preferencias encontré\nestos destinos ideales.")
+        self.lbl_destinos_sub.setStyleSheet("color:#cdd6f4; font-size:15px;")
         layout.addWidget(titulo)
         layout.addSpacing(10)
-        layout.addWidget(sub)
+        layout.addWidget(self.lbl_destinos_sub)
         layout.addSpacing(25)
 
         # Contenedor dinámico — se puebla al completar el flujo conversacional
@@ -861,6 +882,7 @@ class MainWindow(QMainWindow):
         self.lbl_detalle_rating.setText(d["rating"])
         self.lbl_detalle_precio.setText(d["precio"])
         self.lbl_detalle_desc.setText(d["descripcion"])
+        self.frame_se.hide()  # Nav. directa: no hay inferencia que mostrar
 
         tag_textos = d["tags"]
         for i, btn in enumerate(self.btns_detalle_tags):
@@ -897,6 +919,12 @@ class MainWindow(QMainWindow):
             self.lbl_detalle_desc.setText(d["descripcion"])
             tag_textos = d["tags"]
             self._cargar_plan(dest_key)
+            # Mostrar explicación si el motor la generó
+            if rec.explanation:
+                self.lbl_se_texto.setText(rec.explanation)
+                self.frame_se.show()
+            else:
+                self.frame_se.hide()
         else:
             # Usar directamente los datos del dominio
             self.destino = "__dominio__"
@@ -912,6 +940,9 @@ class MainWindow(QMainWindow):
             self.lbl_detalle_desc.setText(dest.description)
             tag_textos = [f"#{t}" for t in dest.tags[:4]]
             self._cargar_plan_generico(rec)
+            # Siempre mostrar explicación para destinos del dominio
+            self.lbl_se_texto.setText(rec.explanation)
+            self.frame_se.show()
 
         for i, btn in enumerate(self.btns_detalle_tags):
             if i < len(tag_textos):
@@ -1000,6 +1031,25 @@ class MainWindow(QMainWindow):
         self.lbl_detalle_precio.setStyleSheet("color:white; font-size:22px; font-weight:bold;")
         self.lbl_detalle_desc    = QLabel("")
         self.lbl_detalle_desc.setStyleSheet("color:#d0d0d0; font-size:16px;")
+        self.lbl_detalle_desc.setWordWrap(True)
+
+        # Panel de Explicación del Sistema Experto (visible solo con resultados del motor)
+        self.frame_se = QWidget()
+        self.frame_se.setStyleSheet(
+            "QWidget { background:#1e1e2e; border-left:3px solid #cba6f7; "
+            "border-radius:6px; padding:8px; }"
+        )
+        frame_se_layout = QVBoxLayout(self.frame_se)
+        frame_se_layout.setContentsMargins(12, 8, 8, 8)
+        frame_se_layout.setSpacing(4)
+        lbl_se_titulo = QLabel("🧠  ¿Por qué te recomendamos este destino?")
+        lbl_se_titulo.setStyleSheet("color:#cba6f7; font-size:13px; font-weight:bold; background:transparent; border:none;")
+        self.lbl_se_texto = QLabel("")
+        self.lbl_se_texto.setStyleSheet("color:#bac2de; font-size:13px; font-style:italic; background:transparent; border:none;")
+        self.lbl_se_texto.setWordWrap(True)
+        frame_se_layout.addWidget(lbl_se_titulo)
+        frame_se_layout.addWidget(self.lbl_se_texto)
+        self.frame_se.hide()  # Oculto por defecto
 
         layout.addWidget(btn_back, alignment=Qt.AlignmentFlag.AlignLeft)
         layout.addSpacing(15)
@@ -1009,9 +1059,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.lbl_detalle_rating)
         layout.addSpacing(12)
         layout.addWidget(self.lbl_detalle_precio)
-        layout.addSpacing(20)
+        layout.addSpacing(12)
         layout.addWidget(self.lbl_detalle_desc)
-        layout.addSpacing(35)
+        layout.addSpacing(10)
+        layout.addWidget(self.frame_se)
+        layout.addSpacing(20)
 
         _btn_style = """
             QPushButton { background:#2b2d42; color:white; border:1px solid #11c5c6;

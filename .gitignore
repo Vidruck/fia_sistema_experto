@@ -1,13 +1,33 @@
-# Python
+# Python — bytecode y caches
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+.Python
 
 # Entorno virtual
 venv/
+.venv/
+env/
+ENV/
 
-# VS Code
+# Pytest / cobertura
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDEs y editores
 .vscode/
+.idea/
+*.swp
+*.swo
 
-# Sistema
+# Sistema operativo
 Thumbs.db
 .DS_Store
+desktop.ini
+
+# Build / distribución
+build/
+dist/
+*.egg-info/

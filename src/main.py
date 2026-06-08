@@ -17,9 +17,15 @@ DOCENCIA (Para el equipo de desarrollo universitario):
       para que la aplicación nunca se rompa.
 """
 
-# howufhehfvkevlrifvlirvlirlvrlflirhvliwherlvihrweli
 import argparse
+import os
 import sys
+
+# Agregar la raíz del proyecto al sys.path para que los imports de 'src.*' funcionen
+# tanto con 'python src/main.py' como con 'python -m src.main'
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _root not in sys.path:
+    sys.path.insert(0, _root)
 
 from src.adapters.outbound.json_repository import JSONDestinationRepository
 from src.config import KNOWLEDGE_BASE_PATH
