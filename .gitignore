@@ -5,6 +5,14 @@ __pycache__/
 *.pyd
 .Python
 
+# Entornos virtuales (scripts de lanzamiento)
+.venv_viajaia/
+
+# PyInstaller — ejecutables standalone
+dist/
+build/
+*.spec
+
 # Entorno virtual
 venv/
 .venv/
