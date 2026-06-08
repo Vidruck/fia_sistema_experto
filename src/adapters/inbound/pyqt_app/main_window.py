@@ -199,7 +199,9 @@ class MainWindow(QMainWindow):
         self.clima = ""
         self.duracion = ""
         self.destino = ""
-        
+        self.recomendaciones = []          # Resultados del motor de inferencia
+        self.recomendacion_actual = None   # Recomendación actualmente seleccionada
+
         # Primero inicializamos la UI base que crea el 'self.stack' primordial
         self.init_ui()
 
@@ -240,7 +242,88 @@ class MainWindow(QMainWindow):
 
     def _ir_a_destinos(self, duracion):
         self.duracion = duracion
+        # Llamar al motor de inferencia real con las selecciones del usuario
+        mood_str, duration_str = self._mapear_selecciones()
+        try:
+            self.recomendaciones = self._use_case.obtener_recomendacion(mood_str, duration_str)
+        except Exception as err:
+            print(f"[ADVERTENCIA] Error en inferencia: {err}")
+            self.recomendaciones = []
+        self._poblar_destinos_dinamicos()
         self.stack.setCurrentWidget(self.destinos_page)
+
+    def _mapear_selecciones(self):
+        """Mapea las selecciones conversacionales de la GUI a los tipos del dominio (mood, duration)."""
+        # El 'sentimiento' que eligió el usuario es el indicador principal del Mood
+        mapa_sentimiento = {
+            'Relajación':                 'relajado',
+            'Contacto con la naturaleza': 'aventurero',
+            'Aventura':                   'aventurero',
+            'Cultura e historia':         'aburrido',
+            'Diversión nocturna':         'aburrido',
+        }
+        # Si no eligió sentimiento, usamos el tipo de escapada como fallback
+        mapa_escapada = {
+            'Escapada romántica': 'relajado',
+            'Aventura juntos':    'aventurero',
+            'Relax y bienestar':  'relajado',
+            'Ciudad y encanto':   'aburrido',
+        }
+        mood_str = (
+            mapa_sentimiento.get(self.sentimiento)
+            or mapa_escapada.get(self.tipo_escapada, 'relajado')
+        )
+
+        mapa_duracion = {
+            'Fin de semana (2-3 días)': 'fin_de_semana',
+            '4 a 7 días':               'una_semana',
+            'Más de una semana':        'mas_de_una_semana',
+        }
+        duration_str = mapa_duracion.get(self.duracion, 'una_semana')
+        return mood_str, duration_str
+
+    def _poblar_destinos_dinamicos(self):
+        """Limpia y repuebla las tarjetas de destinos con resultados del motor de inferencia."""
+        # Limpiar el contenedor de tarjetas actual
+        while self.destinos_cards_layout.count():
+            item = self.destinos_cards_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        _btn_style = """
+            QPushButton { background:#2b2d42; color:white; border:1px solid #11c5c6;
+                          border-radius:18px; font-size:13px; font-weight:bold;
+                          text-align:left; padding:12px; }
+            QPushButton:hover { background:#11c5c6; }
+        """
+        presupuesto_icons = {"Bajo": "💚", "Bajo-Medio": "💛", "Medio": "🟡", "Alto": "💜"}
+        destinos_a_mostrar = self.recomendaciones[:4] if self.recomendaciones else []
+
+        if not destinos_a_mostrar:
+            lbl = QLabel("No se encontraron destinos para tus preferencias.\nIntenta con otras opciones.")
+            lbl.setStyleSheet("color:#f38ba8; font-size:15px;")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.destinos_cards_layout.addWidget(lbl)
+            return
+
+        for rec in destinos_a_mostrar:
+            dest = rec.destination
+            icono = presupuesto_icons.get(dest.budget, "💰")
+            num_estrellas = min(int(rec.score / 1.5) + 1, 5)
+            stars = "⭐" * num_estrellas
+            etiqueta = (
+                f"{dest.name}\n\n"
+                f"{icono} Presupuesto: {dest.budget}\n\n"
+                f"Compatibilidad: {stars}\n({rec.score:.1f} pts)"
+            )
+            btn = QPushButton(etiqueta)
+            btn.setFixedSize(200, 200)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet(_btn_style)
+            btn.clicked.connect(lambda _, r=rec: self._ir_a_detalle_rec(r))
+            self.destinos_cards_layout.addWidget(btn)
+
+        self.destinos_cards_layout.addStretch()
 
     # ------------------------------------------------------------------
     # MÉTODOS QUE ACTUALIZAN LOS TAGS DINÁMICOS DE CADA PANTALLA
@@ -747,27 +830,11 @@ class MainWindow(QMainWindow):
         layout.addWidget(sub)
         layout.addSpacing(25)
 
-        _btn_style = """
-            QPushButton { background:#2b2d42; color:white; border:1px solid #11c5c6;
-                          border-radius:18px; font-size:15px; font-weight:bold;
-                          text-align:left; padding:15px; }
-            QPushButton:hover { background:#11c5c6; }
-        """
-        tarjetas = [
-            ("bacalar",  "Bacalar\n\nQuintana Roo\n\nDesde $8,200     ⭐ 4.8"),
-            ("holbox",   "Holbox\n\nQuintana Roo\n\nDesde $9,100     ⭐ 4.7"),
-            ("vallarta", "Puerto Vallarta\n\nJalisco\n\nDesde $8,900     ⭐ 4.6"),
-        ]
-        fila = QHBoxLayout()
-        for key, etiqueta in tarjetas:
-            btn = QPushButton(etiqueta)
-            btn.setFixedSize(180, 240)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.setStyleSheet(_btn_style)
-            btn.clicked.connect(lambda _, k=key: self._ir_a_detalle(k))
-            fila.addWidget(btn)
-
-        layout.addLayout(fila)
+        # Contenedor dinámico — se puebla al completar el flujo conversacional
+        self.destinos_cards_widget = QWidget()
+        self.destinos_cards_layout = QHBoxLayout(self.destinos_cards_widget)
+        self.destinos_cards_layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.destinos_cards_widget)
         layout.addSpacing(30)
 
         btn_ver_mas = QPushButton("Ver más destinos   →")
@@ -805,6 +872,113 @@ class MainWindow(QMainWindow):
 
         self._cargar_plan(key)
         self.stack.setCurrentWidget(self.detalle_page)
+
+    def _ir_a_detalle_rec(self, rec):
+        """Navega al detalle usando un objeto Recommendation del motor de inferencia."""
+        self.recomendacion_actual = rec
+        dest = rec.destination
+
+        # Verificar si el destino tiene datos enriquecidos en DESTINOS_DATA
+        key_map = {
+            "Bacalar":         "bacalar",
+            "Holbox":          "holbox",
+            "Puerto Vallarta": "vallarta",
+        }
+        dest_key = key_map.get(dest.name)
+
+        if dest_key and dest_key in DESTINOS_DATA:
+            # Usar los datos enriquecidos del diccionario local
+            self.destino = dest_key
+            d = DESTINOS_DATA[dest_key]
+            self.lbl_detalle_titulo.setText(d["nombre"])
+            self.lbl_detalle_estado.setText(d["estado"])
+            self.lbl_detalle_rating.setText(d["rating"])
+            self.lbl_detalle_precio.setText(d["precio"])
+            self.lbl_detalle_desc.setText(d["descripcion"])
+            tag_textos = d["tags"]
+            self._cargar_plan(dest_key)
+        else:
+            # Usar directamente los datos del dominio
+            self.destino = "__dominio__"
+            presupuesto_icons = {"Bajo": "💚", "Bajo-Medio": "💛", "Medio": "🟡", "Alto": "💜"}
+            icono = presupuesto_icons.get(dest.budget, "💰")
+            self.lbl_detalle_titulo.setText(dest.name)
+            self.lbl_detalle_estado.setText(f"Presupuesto: {icono}  {dest.budget}")
+            self.lbl_detalle_rating.setText(
+                f"Compatibilidad: {rec.score:.1f} pts  |  "
+                f"{len(rec.matched_tags)} factores coincidentes"
+            )
+            self.lbl_detalle_precio.setText("🎯 Recomendado especialmente para ti")
+            self.lbl_detalle_desc.setText(dest.description)
+            tag_textos = [f"#{t}" for t in dest.tags[:4]]
+            self._cargar_plan_generico(rec)
+
+        for i, btn in enumerate(self.btns_detalle_tags):
+            if i < len(tag_textos):
+                btn.setText(tag_textos[i])
+                btn.show()
+            else:
+                btn.hide()
+
+        self.stack.setCurrentWidget(self.detalle_page)
+
+    def _cargar_plan_generico(self, rec):
+        """Genera un plan sugerido basado en los datos de una Recommendation del dominio."""
+        dest = rec.destination
+        self.lbl_plan_titulo.setText(dest.name)
+        self.lbl_plan_dias.setText("Plan sugerido por el Sistema Experto")
+
+        # Limpiar los 3 contenedores de plan
+        for widget in [self.plan_contenido_itinerario,
+                       self.plan_contenido_incluye,
+                       self.plan_contenido_opcionales]:
+            while widget.layout().count():
+                item = widget.layout().takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+
+        def _item(widget, badge_txt, desc_txt):
+            fila = QHBoxLayout()
+            badge = QLabel(badge_txt)
+            badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            badge.setFixedSize(65, 35)
+            badge.setStyleSheet(
+                "background:#0b6f73; color:white; border:1px solid #11c5c6; "
+                "border-radius:17px; font-size:13px; font-weight:bold;"
+            )
+            desc = QLabel(desc_txt)
+            desc.setStyleSheet("color:white; font-size:14px;")
+            desc.setWordWrap(True)
+            fila.addWidget(badge)
+            fila.addSpacing(10)
+            fila.addWidget(desc)
+            fila.addStretch()
+            card = QWidget()
+            card.setLayout(fila)
+            card.setStyleSheet(
+                "QWidget { background:#24363b; border:1px solid #35585f; border-radius:12px; }"
+            )
+            card.setMinimumHeight(55)
+            widget.layout().addWidget(card)
+            widget.layout().addSpacing(8)
+
+        # Itinerario — explicación del motor experto
+        explicacion_corta = rec.explanation[:130] + "..." if len(rec.explanation) > 130 else rec.explanation
+        _item(self.plan_contenido_itinerario, "🧠", explicacion_corta)
+        for tag in rec.matched_tags[:3]:
+            _item(self.plan_contenido_itinerario, "✅", f"Coincide con tu preferencia: '{tag}'")
+
+        # Incluye — características del destino
+        for tag in dest.tags:
+            _item(self.plan_contenido_incluye, "🏷️", f"Característica: {tag}")
+
+        # Opcionales — sugerencias genéricas
+        for badge, texto in [
+            ("➕", "Investigar actividades locales disponibles"),
+            ("➕", "Comparar opciones de hospedaje según presupuesto"),
+            ("➕", "Revisar temporada y clima antes de reservar"),
+        ]:
+            _item(self.plan_contenido_opcionales, badge, texto)
 
     # ================= PANTALLA 8: DETALLE DESTINO =================
     def _build_detalle_page(self):
@@ -1414,7 +1588,7 @@ class MainWindow(QMainWindow):
         mood_str     = self.mood_combo.currentData()
         duration_str = self.duration_combo.currentData()
         try:
-            recomendaciones = self._use_case.obtener_recommendacion(mood_str, duration_str)
+            recomendaciones = self._use_case.obtener_recomendacion(mood_str, duration_str)
             self.render_recommendations(recomendaciones)
         except DomainError as err:
             QMessageBox.warning(self, "Error de Dominio", str(err))
