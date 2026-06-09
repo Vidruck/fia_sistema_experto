@@ -205,6 +205,47 @@ class MainWindow(QMainWindow):
         self.init_ui()
 
     # ------------------------------------------------------------------
+    # REINICIO DE CONVERSACIÓN
+    # ------------------------------------------------------------------
+
+    def _reiniciar_conversacion(self):
+        """
+        Limpia todo el estado conversacional y regresa a la pantalla de bienvenida.
+        Permite al usuario iniciar una nueva consulta al motor de inferencia
+        sin necesidad de cerrar y reabrir la aplicación.
+        """
+        # 1. Limpiar variables de estado
+        self.tipo_viaje          = ""
+        self.tipo_escapada       = ""
+        self.presupuesto         = ""
+        self.sentimiento         = ""
+        self.clima               = ""
+        self.duracion            = ""
+        self.destino             = ""
+        self.recomendaciones     = []
+        self.recomendacion_actual = None
+
+        # 2. Limpiar el subtítulo de destinos (para que no quede el perfil anterior)
+        if hasattr(self, 'lbl_destinos_sub'):
+            self.lbl_destinos_sub.setText(
+                "Basadas en sus preferencias encontré\nestos destinos ideales."
+            )
+
+        # 3. Limpiar tarjetas de la pantalla de destinos
+        if hasattr(self, 'destinos_cards_layout'):
+            while self.destinos_cards_layout.count():
+                item = self.destinos_cards_layout.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+
+        # 4. Ocultar el panel de explicación del SE
+        if hasattr(self, 'frame_se'):
+            self.frame_se.hide()
+
+        # 5. Navegar a la pantalla de bienvenida (siempre es la primera del stack)
+        self.stack.setCurrentIndex(0)
+
+    # ------------------------------------------------------------------
     # MÉTODOS AUXILIARES DE NAVEGACIÓN (guardan estado + actualizan UI)
     # ------------------------------------------------------------------
 
@@ -905,6 +946,19 @@ class MainWindow(QMainWindow):
         """)
         btn_ver_mas.clicked.connect(lambda: self.stack.setCurrentWidget(self.saved_page))
         layout.addWidget(btn_ver_mas, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addSpacing(12)
+
+        btn_nueva = QPushButton("🔄  Nueva búsqueda")
+        btn_nueva.setFixedSize(300, 48)
+        btn_nueva.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_nueva.setStyleSheet("""
+            QPushButton { background:transparent; color:#cba6f7;
+                          border:2px solid #cba6f7; border-radius:24px;
+                          font-size:16px; font-weight:bold; }
+            QPushButton:hover { background:#cba6f7; color:#1e1e2e; }
+        """)
+        btn_nueva.clicked.connect(self._reiniciar_conversacion)
+        layout.addWidget(btn_nueva, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addStretch()
 
         self.stack.addWidget(self.destinos_page)
@@ -1138,6 +1192,19 @@ class MainWindow(QMainWindow):
 
         btn_plan.clicked.connect(redirigir_a_plan)
         layout.addWidget(btn_plan)
+        layout.addSpacing(12)
+
+        btn_nueva_det = QPushButton("🔄  Nueva búsqueda")
+        btn_nueva_det.setFixedHeight(46)
+        btn_nueva_det.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_nueva_det.setStyleSheet("""
+            QPushButton { background:transparent; color:#cba6f7;
+                          border:2px solid #cba6f7; border-radius:23px;
+                          font-size:15px; font-weight:bold; }
+            QPushButton:hover { background:#cba6f7; color:#1e1e2e; }
+        """)
+        btn_nueva_det.clicked.connect(self._reiniciar_conversacion)
+        layout.addWidget(btn_nueva_det)
         layout.addStretch()
 
         self.stack.addWidget(self.detalle_page)
