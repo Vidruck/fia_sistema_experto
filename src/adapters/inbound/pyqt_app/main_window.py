@@ -4,7 +4,6 @@ PROPÓSITO:
     Define la ventana principal de la interfaz de usuario en PyQt6 (Inbound Adapter).
     Presenta un diseño moderno, responsivo y oscuro con estilos personalizados (CSS/QSS)
     inspirado en el esquema de color Catppuccin Mocha.
-DOCENCIA (Para el equipo de desarrollo universitario):
     - Esta clase hereda de `QMainWindow` y representa la capa de presentación.
     - Se comunica únicamente con la abstracción `RecommendationUseCase` mediante inyección
       de dependencias en el constructor.

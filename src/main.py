@@ -8,7 +8,6 @@ PROPÓSITO:
     3. Se inyecta el repositorio en el caso de uso (`VacationRecommendationService`).
     4. Se decide qué adaptador de entrada arrancar (GUI PyQt6 o Consola CLI) basado en los argumentos.
 
-DOCENCIA (Para el equipo de desarrollo universitario):
     - Raíz de Composición: Es un concepto clave. Las capas internas (Dominio y Puertos) no
       saben cómo se crean las dependencias. Solo esta clase `main.py` tiene la responsabilidad de
       instanciar y "conectar" los cables de la arquitectura.

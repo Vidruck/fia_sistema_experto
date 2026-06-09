@@ -5,7 +5,6 @@ PROPÓSITO:
     Permite al equipo de desarrollo y a los usuarios interactuar con el sistema experto
     de forma ágil directamente en su terminal, ideal para pruebas rápidas dentro del contenedor Docker.
 
-DOCENCIA (Para el equipo de desarrollo universitario):
     - Este adaptador se conecta únicamente con la interfaz `RecommendationUseCase`.
     - No sabe nada acerca del archivo JSON, ni del motor de inferencia interno.
     - Se limita a capturar las entradas de teclado del usuario, llamar al puerto y dar formato a la salida.

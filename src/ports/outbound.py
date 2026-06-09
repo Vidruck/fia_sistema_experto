@@ -6,7 +6,6 @@ PROPÓSITO:
     la aplicación (el dominio) necesita del mundo exterior, como acceder a una base de datos,
     cargar un archivo local o comunicarse con un servicio web externo.
 
-DOCENCIA (Para el equipo de desarrollo universitario):
     - El Dominio es el "dueño" del puerto. El dominio define *qué* datos necesita,
       y los adaptadores de salida (como `json_repository.py`) definen *cómo* se obtienen técnicamente.
     - Al usar esta abstracción, el motor de inferencia de nuestro sistema experto no se entera

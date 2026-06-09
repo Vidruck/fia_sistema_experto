@@ -6,7 +6,6 @@ PROPÓSITO:
     es decir, las operaciones que los adaptadores externos (como la interfaz PyQt o la CLI) 
     pueden solicitarle al núcleo de la aplicación (el dominio).
 
-DOCENCIA (Para el equipo de desarrollo universitario):
     - Usamos la clase `ABC` (Abstract Base Class) de Python para crear interfaces puras.
     - El decorador `@abstractmethod` obliga a las subclases a implementar dicho método.
     - Esto desacopla totalmente los controladores visuales del flujo de negocio. Si mañana cambiamos
