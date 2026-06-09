@@ -1,126 +1,322 @@
-# Sistema Experto de Recomendación de Vacaciones 🌴✈️
+# ViajaIA — Sistema Experto de Recomendación de Vacaciones 🌴✈️
 
-Este es un **Sistema Experto inicial** diseñado para analizar el estado de ánimo de un usuario y su disponibilidad de tiempo a través de un diálogo interactivo, recomendando el destino turístico ideal sobre una base de conocimiento y reglas de producción.
+> **Versión MVP** · Arquitectura Hexagonal · PyQt6 · Motor de Inferencia con Encadenamiento hacia Adelante
 
-El proyecto está diseñado bajo un esquema riguroso de **Arquitectura Hexagonal (Puertos y Adaptadores)** y empaquetado con **Docker** para su desarrollo, priorizando la optimización de recursos y las buenas prácticas de desarrollo de software para el equipo universitario.
+Sistema Experto que analiza el perfil del usuario (estado de ánimo, duración del viaje, presupuesto y clima) a través de un diálogo conversacional interactivo, recomendando el destino turístico ideal sustentado en una base de conocimiento de reglas de producción y explicando el razonamiento de cada decisión.
 
 ---
 
 ## 🎯 Objetivos del Proyecto
-1. **Analizar Hechos**: Determinar el mejor destino según la combinación de Estado de Ánimo (`Mood`) y Duración del Viaje (`TimeDuration`).
-2. **Explicabilidad**: El sistema experto es transparente y justifica sus decisiones indicando qué reglas se activaron para sugerir un destino.
-3. **Multiplataforma**: La interfaz visual se desacopla del core lógico. La interfaz de usuario funciona en Windows, Linux y macOS de forma nativa.
-4. **Pedagogía Activa**: El código contiene comentarios explicativos detallados en español para que los estudiantes comprendan cada decisión de diseño.
+
+| Objetivo | Descripción |
+|----------|-------------|
+| **Inferencia** | Determinar el mejor destino combinando múltiples variables: estado de ánimo, duración, presupuesto y clima mediante un diccionario dinámico de hechos |
+| **Explicabilidad** | El sistema justifica sus decisiones indicando qué reglas se activaron para sugerir cada destino |
+| **Multiplataforma** | La GUI nativa PyQt6 funciona en Windows 11 y Linux; la CLI funciona en Docker/cualquier terminal |
+| **Pedagogía Activa** | Código comentado en español para que el equipo comprenda cada decisión de diseño |
 
 ---
 
-## 🏗️ Directiva de Diseño: Arquitectura Hexagonal
+## 🏗️ Arquitectura Hexagonal (Puertos y Adaptadores)
 
-La arquitectura se divide en tres capas fundamentales, separadas por límites claros:
+La arquitectura separa el núcleo de negocio de toda tecnología externa mediante tres capas:
 
 ```text
-               ┌──────────────────────────────────────────────────┐
-               │                    ADAPTADORES                   │
-               │   ┌──────────────────────────────────────────┐   │
-               │   │                 PUERTOS                  │   │
-               │   │   ┌──────────────────────────────────┐   │   │
-               │   │   │             DOMINIO              │   │   │
-               │   │   │   ┌──────────────────────────┐   │   │   │
-               │   │   │   │ Modelos de datos         │   │   │   │
-               │   │   │   │ (Mood, TimeDuration...)  │   │   │   │
-               │   │   │   └──────────────────────────┘   │   │   │
-               │   │   │   ┌──────────────────────────┐   │   │   │
-  PyQt GUI ───>│──>│──>│   │ Motor de Inferencia      │   │   │   │
-  (Inbound)    │   │   │   │ (Forward Chaining)       │   │   │   │
-               │   │   │   └──────────────────────────┘   │   │   │
-  CLI Console ─>│──>│──>│                              │   │   │   │
-  (Inbound)    │   │   └──────────────────────────────────┘   │   │   │
-               │   │                                          │   │   │
-               │   │   ┌──────────────────────────────────┐   │   │   │
-               │   └──>│ DestinationRepository (Puerto)   │──>│───┼─> Archivo JSON
-               │       └──────────────────────────────────┘   │   │   (Outbound)
-               └──────────────────────────────────────────┘   │
-               └──────────────────────────────────────────────────┘
+  ╔═══════════════════════════════════════════════════════════════╗
+  ║                       ADAPTADORES                             ║
+  ║                                                               ║
+  ║   [Inbound]          [Inbound]          [Outbound]            ║
+  ║   PyQt6 GUI ──────►  CLI Console ────►  JSON Repository       ║
+  ║      │                   │                    │               ║
+  ╠══════│═══════════════════│════════════════════│═══════════════╣
+  ║      │    PUERTOS        │                    │               ║
+  ║      │  RecommendationUseCase           DestinationRepository ║
+  ║      │  (ports/inbound.py)              (ports/outbound.py)   ║
+  ╠══════│═══════════════════│════════════════════│═══════════════╣
+  ║      │                   │    DOMINIO         │               ║
+  ║      └───────────────────┼────────────────────┘               ║
+  ║                          │                                    ║
+  ║          VacationRecommendationService                        ║
+  ║            (domain/services.py)                               ║
+  ║                    │                                          ║
+  ║          VacationExpertSystem                                 ║
+  ║            (domain/rules_engine.py)                           ║
+  ║            Forward Chaining + Dict de Hechos                  ║
+  ║                    │                                          ║
+  ║          Destination · Recommendation · Mood · TimeDuration   ║
+  ║            (domain/models.py)                                 ║
+  ╚═══════════════════════════════════════════════════════════════╝
 ```
 
-### 1. Capa de Dominio (Hexágono Interno)
-* **Modelos (`src/domain/models.py`)**: Clases de datos inmutables y enums limpios. No tienen dependencias de bases de datos o frameworks.
-* **Motor de Inferencia (`src/domain/rules_engine.py`)**: Implementa un algoritmo de *Forward Chaining* (Encadenamiento hacia adelante). Busca qué reglas en formato JSON coinciden con los hechos actuales y puntúa los destinos según el peso de cada consecuencia.
-* **Excepciones (`src/domain/exceptions.py`)**: Control de errores específicos del dominio.
+### 📁 Mapa de Archivos
 
-### 2. Capa de Puertos (Interfaces)
-* **Puertos de Entrada (Driving Ports - `src/ports/inbound.py`)**: Contrato (`RecommendationUseCase`) que la interfaz gráfica o consola debe utilizar para comunicarse con el negocio.
-* **Puertos de Salida (Driven Ports - `src/ports/outbound.py`)**: Contrato (`DestinationRepository`) que define qué datos necesita el núcleo del negocio de fuentes externas.
+```
+Sistema_Experto/
+├── src/
+│   ├── main.py                          ← Punto de entrada / Composition Root
+│   ├── config.py                        ← Rutas globales del proyecto
+│   ├── domain/
+│   │   ├── models.py                    ← Entidades: Destination, Recommendation, Mood, TimeDuration
+│   │   ├── rules_engine.py              ← Motor de Inferencia (Forward Chaining)
+│   │   ├── services.py                  ← Caso de Uso: VacationRecommendationService
+│   │   └── exceptions.py               ← DomainError, InferenceError
+│   ├── ports/
+│   │   ├── inbound.py                   ← Puerto: RecommendationUseCase (ABC)
+│   │   └── outbound.py                  ← Puerto: DestinationRepository (ABC)
+│   └── adapters/
+│       ├── inbound/
+│       │   ├── cli.py                   ← Adaptador: Interfaz de consola interactiva
+│       │   └── pyqt_app/
+│       │       ├── app.py               ← Inicializador de la app PyQt6
+│       │       └── main_window.py       ← GUI conversacional + formulario experto
+│       └── outbound/
+│           └── json_repository.py       ← Adaptador: Lectura de destinations.json
+├── data/
+│   └── destinations.json                ← Base de Conocimiento (destinos + reglas)
+├── tests/
+│   ├── test_rules_engine.py             ← Tests del motor de inferencia
+│   └── test_json_repository.py          ← Tests del repositorio JSON
+├── ejecutar_linux.sh                    ← 🐧 Lanzador para Linux (un clic)
+├── ejecutar_windows.bat                 ← 🪟 Lanzador para Windows (CMD)
+├── ejecutar_windows.ps1                 ← 🪟 Lanzador para Windows (PowerShell)
+├── INSTALACION.md                       ← Guía de instalación y troubleshooting
+├── Dockerfile                           ← Imagen Docker (CLI + pruebas)
+└── docker-compose.yml                   ← Orquestador Docker
+```
 
-### 3. Capa de Adaptadores (Implementaciones)
-* **Adaptadores de Entrada (Inbound Adapters)**:
-  * **Consola (`src/adapters/inbound/cli.py`)**: Menú interactivo por línea de comandos para depuración rápida.
-  * **PyQt GUI (`src/adapters/inbound/pyqt_app/`)**: Interfaz gráfica moderna, responsiva, estilizada con hojas de estilos oscuras (esquema Catppuccin Mocha) y soporte de HTML interactivo para mostrar resultados.
-* **Adaptadores de Salida (Outbound Adapters)**:
-  * **Persistencia JSON (`src/adapters/outbound/json_repository.py`)**: Lee la base de conocimiento estructurada de `data/destinations.json`.
+---
+
+## 🧠 Motor de Inferencia — Cómo funciona
+
+El motor (`VacationExpertSystem`) implementa **Forward Chaining (Encadenamiento hacia Adelante)**. A partir de la versión MVP (Fase 4) acepta un **diccionario dinámico de hechos** en lugar de solo dos parámetros fijos, lo que permite escalar a más variables sin modificar la firma de la API.
+
+### Flujo de Inferencia
+
+```
+ Usuario selecciona en GUI
+ ┌─────────────────────────────────────────────────────────┐
+ │  estado de ánimo + duración + presupuesto + clima + ... │
+ └───────────────────┬─────────────────────────────────────┘
+                     │ user_facts = {"mood": "aventurero",
+                     │               "duration": "mas_de_una_semana",
+                     │               "presupuesto": "Bajo", ...}
+                     ▼
+         ┌─────────────────────┐
+         │  Pattern Matching   │  ← ¿Qué reglas se activan?
+         │  _rule_applies()    │    Todas las condiciones deben coincidir
+         └────────┬────────────┘
+                  │  fired_rules = [rule_aventurero_largo, ...]
+                  ▼
+         ┌─────────────────────┐
+         │  Acumulación de     │  ← tag_weights["aventura"] += 3.0
+         │  Pesos por Etiqueta │    tag_weights["montaña"]  += 3.0
+         └────────┬────────────┘
+                  │
+                  ▼
+         ┌─────────────────────┐
+         │  Evaluación de      │  ← score = Σ tag_weights[tag] para cada
+         │  Destinos           │    tag del destino que esté en tag_weights
+         └────────┬────────────┘
+                  │
+                  ▼
+         ┌─────────────────────┐
+         │  Ranking + Explic.  │  ← Ordenados por score desc.
+         │  Generación         │    + texto legible de reglas activadas
+         └─────────────────────┘
+```
+
+### Reglas de Producción (Ejemplo)
+
+```json
+{
+  "id": "rule_aventurero_largo",
+  "description": "Si el usuario busca aventura y tiene más de una semana...",
+  "conditions": {
+    "mood": "aventurero",
+    "duration": "mas_de_una_semana"
+  },
+  "consequences": {
+    "recommended_tags": ["aventura", "montaña", "naturaleza"],
+    "weight_modifier": 3.0
+  }
+}
+```
+
+### API del Servicio
+
+```python
+# Firma actual (Fase 4 MVP)
+svc.obtener_recomendacion(user_facts: Dict[str, Any]) -> List[Recommendation]
+
+# Ejemplo de llamada
+resultados = svc.obtener_recomendacion({
+    "mood":        "aventurero",
+    "duration":    "mas_de_una_semana",
+    "presupuesto": "Bajo"
+})
+# → [Trekking en la Patagonia (9.0 pts), Mochilazo en la Huasteca (6.0 pts), ...]
+```
 
 ---
 
 ## 📂 Base de Conocimiento (`data/destinations.json`)
 
-La base de conocimiento es editable y consta de dos secciones:
-1. **`destinations`**: Los lugares disponibles para viajar, categorizados por presupuesto y etiquetas (`tags`).
-2. **`rules`**: Reglas lógicas de formato `SI <condiciones> ENTONCES <consecuencias>`.
-   * Ejemplo: Si el estado de ánimo es *estresado* y la duración es *fin de semana*, se recomiendan etiquetas de *bosque*, *tranquilidad* y *relajación* con un modificador de peso de `2.5`.
+La base de conocimiento es editable sin tocar código. Consta de dos secciones:
+
+### Destinos disponibles (6)
+
+| Nombre | Presupuesto | Tags principales |
+|--------|------------|-----------------|
+| Cabaña en el Bosque (Mazamitla) | Bajo | bosque, tranquilidad, frio, relajacion, economico |
+| Playa del Carmen (Riviera Maya) | Alto | playa, sol, calor, relajacion, diversion |
+| Trekking extremo en la Patagonia | Alto | montaña, aventura, frio, deporte, naturaleza |
+| Mochilazo en la Huasteca Potosina | Bajo-Medio | aventura, calor, naturaleza, agua, economico |
+| Tour Cultural en Ciudad de México | Medio | ciudad, historia, cultura, gastronomia, museos |
+| Pueblo Mágico del Tequila | Medio | campo, historia, gastronomia, cultura, relajacion |
+
+### Reglas de Producción (6)
+
+| ID | Condiciones | Destinos favorecidos |
+|----|-------------|---------------------|
+| `rule_estresado_fin_semana` | mood=estresado + fin_de_semana | Bosque, campo |
+| `rule_estresado_semana_completa` | mood=estresado + una_semana | Playa |
+| `rule_aventurero_largo` | mood=aventurero + mas_de_una_semana | Patagonia |
+| `rule_aventurero_corto` | mood=aventurero + fin_de_semana | Huasteca |
+| `rule_aburrido_cualquier_tiempo` | mood=aburrido | CDMX, cultura |
+| `rule_cansado_corto` | mood=cansado + fin_de_semana | Tequila, campo |
+
+> Las condiciones admiten **cualquier clave del diccionario de hechos**. Para agregar una nueva regla o destino basta con editar el JSON.
 
 ---
 
-## 🛠️ Guía de Uso del Entorno
+## 🚀 Guía de Ejecución
 
-### Opción A: Ejecución en Contenedor (Recomendado para desarrollo/CLI)
-Esta opción es ideal para correr el proyecto y sus pruebas automatizadas en cualquier sistema operativo sin instalar dependencias locales. Por defecto levantará la interfaz de consola interactiva.
+### 🐧 Linux — Lanzador Automático (Recomendado)
 
-1. **Construir el contenedor y arrancar la CLI**:
-   ```bash
-   docker-compose up --build
-   ```
-2. **Ejecutar las pruebas unitarias dentro del contenedor**:
-   ```bash
-   docker-compose run app pytest
-   ```
+```bash
+# La primera vez, dar permisos de ejecución:
+chmod +x ejecutar_linux.sh
+
+# Ejecutar (instala automáticamente todo lo necesario):
+./ejecutar_linux.sh
+
+# Si necesitas reinstalar desde cero:
+./ejecutar_linux.sh --reinstalar
+```
+
+El script hace automáticamente:
+1. ✅ Verifica Python 3.10+
+2. ✅ Instala librerías gráficas del sistema para PyQt6 (`libxcb`, `libgl1`, `libxkbcommon`)
+3. ✅ Crea un entorno virtual `.venv_viajaia/`
+4. ✅ Instala todas las dependencias
+5. ✅ Lanza la aplicación
 
 ---
 
-### Opción B: Ejecución Nativa (Recomendado para la Interfaz Gráfica PyQt6)
-Para ver la interfaz gráfica enriquecida, es recomendable ejecutarla nativamente en tu computadora host, ya que el motor de renderizado gráfico nativo corre con mayor velocidad y fluidez sin configurar X11 en Docker.
+### 🪟 Windows 11 — Lanzadores Automáticos (Recomendado)
 
-1. **Crear y activar un entorno virtual (venv)**:
-   * **Linux/macOS**:
-     ```bash
-     python3 -m venv venv
-     source venv/bin/activate
-     ```
-   * **Windows (PowerShell)**:
-     ```powershell
-     python -m venv venv
-     .\venv\Scripts\Activate.ps1
-     ```
+**Opción A — PowerShell (con colores y UI visual):**
+```powershell
+# Clic derecho en ejecutar_windows.ps1 → "Ejecutar con PowerShell"
+# O desde terminal:
+powershell -ExecutionPolicy Bypass -File ejecutar_windows.ps1
 
-2. **Instalar dependencias**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+# Reinstalar desde cero:
+powershell -ExecutionPolicy Bypass -File ejecutar_windows.ps1 -Reinstalar
+```
 
-3. **Iniciar la aplicación con la interfaz gráfica (GUI)**:
-   ```bash
-   python src/main.py
-   ```
-   *(Nota: Puedes forzar la CLI de forma nativa usando `python src/main.py --cli`)*
+**Opción B — CMD (doble clic):**
+```batch
+ejecutar_windows.bat
+```
 
-4. **Ejecutar pruebas unitarias locales**:
-   ```bash
-   pytest
-   ```
+> ⚠️ **Requisito:** Python 3.10+ instalado desde [python.org](https://python.org/downloads).  
+> En el instalador, marcar **"Add Python to PATH"**.
+
+---
+
+### 🐳 Docker — CLI (Desarrollo / Pruebas sin GUI)
+
+Ideal para correr pruebas automatizadas o la interfaz de consola en cualquier sistema operativo sin instalar dependencias locales.
+
+```bash
+# Arrancar la CLI interactiva:
+docker-compose up --build
+
+# Ejecutar pruebas unitarias:
+docker-compose run app pytest
+
+# Ejecutar pruebas con salida detallada:
+docker-compose run app pytest -v
+```
+
+---
+
+### ⚙️ Manual (cualquier plataforma)
+
+```bash
+# 1. Crear y activar entorno virtual
+python3 -m venv venv
+source venv/bin/activate          # Linux/macOS
+# .\venv\Scripts\Activate.ps1    # Windows PowerShell
+
+# 2. Instalar dependencias
+pip install -r requirements.txt
+
+# 3. Lanzar con GUI
+python src/main.py
+
+# 4. Lanzar solo CLI (sin PyQt6)
+python src/main.py --cli
+```
 
 ---
 
 ## 🧪 Pruebas Automatizadas
 
-El código cuenta con una suite completa de pruebas unitarias localizadas en la carpeta `tests/` para verificar:
-1. La correcta activación de las reglas de producción en el motor de inferencia (`test_rules_engine.py`).
-2. La resiliencia ante archivos JSON mal formados o vacíos en el repositorio (`test_json_repository.py`).
+```bash
+# Ejecutar toda la suite
+pytest
+
+# Con detalle
+pytest -v
+
+# Solo motor de inferencia
+pytest tests/test_rules_engine.py -v
+
+# Solo repositorio JSON
+pytest tests/test_json_repository.py -v
+```
+
+La suite cubre:
+- **`test_rules_engine.py`**: Activación correcta de reglas de producción, fallback heurístico cuando no hay reglas activas, y cálculo de puntajes de coincidencia.
+- **`test_json_repository.py`**: Carga correcta del JSON, resiliencia ante archivos malformados o vacíos.
+
+---
+
+## 📖 Glosario del Sistema Experto
+
+| Término | Definición |
+|---------|-----------|
+| **Hecho (Fact)** | Información conocida sobre el usuario: `{"mood": "aventurero", "duration": "fin_de_semana"}` |
+| **Regla de Producción** | Estructura `SI <condiciones> ENTONCES <consecuencias>` almacenada en el JSON |
+| **Encadenamiento hacia Adelante** | El motor parte de los hechos conocidos y dispara reglas hasta obtener conclusiones |
+| **Pattern Matching** | Proceso de comparar los hechos actuales contra las condiciones de cada regla |
+| **Peso (weight_modifier)** | Valor numérico que indica cuánto contribuye una regla al puntaje de un destino |
+| **Score** | Suma de pesos de todas las etiquetas de un destino que coinciden con las reglas activadas |
+| **Explicación** | Texto generado automáticamente que indica qué reglas justifican cada recomendación |
+| **Fallback heurístico** | Si ninguna regla se activa, el motor busca por similitud de tags del `mood` |
+
+---
+
+## 👥 Créditos y Contribuciones
+
+Proyecto desarrollado por el equipo universitario para la materia de **Fundamentos de Inteligencia Artificial**.
+
+| Fase | Responsabilidad | Estado |
+|------|----------------|--------|
+| Fase 1 | Corrección de bugs y conexión GUI↔Motor | ✅ Completa |
+| Fase 2 | Integración GUI conversacional con motor de inferencia | ✅ Completa |
+| Fase 3 | Expansión de la base de conocimiento | ✅ Completa |
+| Fase 4 | Motor de inferencia dinámico (dict de hechos multi-variable) | ✅ Completa |
+| Fase 5 | Pulido de presentación (UI, scripts de lanzamiento) | ✅ Completa |
