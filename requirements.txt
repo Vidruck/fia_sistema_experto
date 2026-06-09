@@ -1,6 +1,8 @@
 # Dependencias del proyecto
-# PyQt6 se utiliza para la interfaz gráfica nativa (debe instalarse en el entorno host local)
-PyQt6==6.6.1
+# PyQt6 se utiliza para la interfaz gráfica nativa.
+# Se permite >= 6.6.1 para compatibilidad con Python 3.13+ (sin wheel exacta para 3.14)
+# En Python 3.13+ el script ejecutar_linux.sh instala PyQt6 desde el sistema (apt)
+PyQt6>=6.6.1
 
 # Bibliotecas para pruebas unitarias
 pytest==8.0.0
