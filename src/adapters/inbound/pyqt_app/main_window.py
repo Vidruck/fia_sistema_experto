@@ -1677,8 +1677,10 @@ class MainWindow(QMainWindow):
     def on_recommend_clicked(self):
         mood_str     = self.mood_combo.currentData()
         duration_str = self.duration_combo.currentData()
+        # La nueva API (Fase 4) espera un diccionario de hechos, no parámetros posicionales
+        user_facts = {k: v for k, v in {"mood": mood_str, "duration": duration_str}.items() if v}
         try:
-            recomendaciones = self._use_case.obtener_recomendacion(mood_str, duration_str)
+            recomendaciones = self._use_case.obtener_recomendacion(user_facts)
             self.render_recommendations(recomendaciones)
         except DomainError as err:
             QMessageBox.warning(self, "Error de Dominio", str(err))
