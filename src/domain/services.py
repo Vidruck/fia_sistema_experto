@@ -11,14 +11,14 @@ DOCENCIA (Para el equipo de desarrollo universitario):
       cambiar el origen de datos (por ejemplo, para pruebas automatizadas con datos falsos/mocks)
       sin modificar una sola línea de código de esta clase.
     - Orquestación: El caso de uso se encarga de:
-        1. Recibir los datos de la interfaz de usuario en texto plano.
-        2. Validar y convertirlos a Tipos de Datos del Dominio (Enums `Mood` y `TimeDuration`).
+        1. Recibir los datos de la interfaz de usuario estructurados en un diccionario dinámico de hechos.
+        2. Validar los campos críticos usando los Tipos de Datos del Dominio (Enums `Mood` y `TimeDuration`).
         3. Solicitar datos al adaptador de salida (a través de la abstracción del repositorio).
         4. Instanciar el motor de inferencia y ejecutar la lógica de reglas.
         5. Devolver las recomendaciones limpias para su visualización.
 """
 
-from typing import List
+from typing import List, Dict, Any
 from src.ports.inbound import RecommendationUseCase
 from src.ports.outbound import DestinationRepository
 from src.domain.models import Mood, TimeDuration, Recommendation
@@ -39,17 +39,19 @@ class VacationRecommendationService(RecommendationUseCase):
         """
         self._repository = repository
 
-    def obtener_recomendacion(self, mood_str: str, duration_str: str) -> List[Recommendation]:
+    def obtener_recomendacion(self, user_facts: Dict[str, Any]) -> List[Recommendation]:
         """
-        Implementa la lógica del caso de uso.
+        Implementa la lógica del caso de uso procesando múltiples variables dinámicas.
         """
-        # 1. Validación y transformación de las entradas del usuario a objetos ricos del dominio
+        # 1. Validación de entradas críticas (si existen en los hechos) usando objetos ricos del dominio
         try:
-            mood = Mood.from_str(mood_str)
-            duration = TimeDuration.from_str(duration_str)
+            if "mood" in user_facts and user_facts["mood"]:
+                Mood.from_str(user_facts["mood"])
+            if "duration" in user_facts and user_facts["duration"]:
+                TimeDuration.from_str(user_facts["duration"])
         except ValueError as err:
             # Re-lanzamos como error de dominio para ser capturado adecuadamente
-            raise DomainError(str(err))
+            raise DomainError(f"Error de validación en los datos ingresados: {str(err)}")
 
         # 2. Obtención de datos e inicialización del motor de inferencia
         # Nota: Cargamos las reglas y destinos en cada petición para que, si el archivo JSON cambia,
@@ -59,6 +61,6 @@ class VacationRecommendationService(RecommendationUseCase):
 
         # 3. Ejecución del motor de inferencia (dominio puro)
         motor = VacationExpertSystem(destinations=destinos, rules=reglas)
-        recomendaciones = motor.infer(mood=mood, duration=duration)
+        recomendaciones = motor.infer(user_facts=user_facts)
 
         return recomendaciones

@@ -3,7 +3,7 @@ MÓDULO: src/domain/rules_engine.py
 PROPÓSITO:
     Este módulo contiene el Motor de Inferencia del Sistema Experto.
     Utiliza una estrategia de "Encadenamiento hacia adelante" (Forward Chaining) simplificada:
-    1. Toma los hechos conocidos (estado de ánimo y tiempo disponible del usuario).
+    1. Toma los hechos conocidos (estado de ánimo, clima, presupuesto, etc., provenientes de la GUI).
     2. Busca en la base de conocimiento cuáles reglas de producción "se activan" (es decir, sus condiciones se cumplen).
     3. Acumula las consecuencias de las reglas activadas (etiquetas de destino recomendadas y sus pesos).
     4. Evalúa cada destino disponible, calculando un "puntaje de coincidencia" (score) basado en la concurrencia de etiquetas.
@@ -11,13 +11,13 @@ PROPÓSITO:
 
 DOCENCIA (Para el equipo de desarrollo universitario):
     - Regla de Producción: Es una estructura lógica "SI <condiciones> ENTONCES <consecuencias>".
-    - Hecho (Fact): Información conocida y verdadera sobre el estado actual (ej: Estado de Ánimo = Aventurero).
+    - Hecho (Fact): Información conocida y verdadera sobre el estado actual (ej: Presupuesto = Alto).
     - Explicabilidad: Un buen sistema experto no solo da una respuesta, sino que "justifica" sus decisiones.
       Aquí generamos una explicación legible detallando qué reglas se activaron para recomendar cada destino.
 """
 
 from typing import List, Dict, Any
-from src.domain.models import Mood, TimeDuration, Destination, Recommendation
+from src.domain.models import Destination, Recommendation
 from src.domain.exceptions import InferenceError
 
 class VacationExpertSystem:
@@ -36,22 +36,19 @@ class VacationExpertSystem:
         self._destinations = destinations
         self._rules = rules
 
-    def infer(self, mood: Mood, duration: TimeDuration) -> List[Recommendation]:
+    def infer(self, user_facts: Dict[str, Any]) -> List[Recommendation]:
         """
         Realiza el proceso de inferencia y devuelve las recomendaciones ordenadas.
+        Ahora acepta un diccionario dinámico de hechos (datos recopilados por la GUI).
         
-        :param mood: Estado de ánimo del usuario (Enum).
-        :param duration: Tiempo disponible (Enum).
+        :param user_facts: Diccionario con los hechos recopilados (ej: {"mood": "aventurero", "clima": "frio", "presupuesto": "medio"}).
         :return: Lista de objetos Recommendation ordenados por puntuación descendente.
         """
         if not self._destinations:
             return []
 
-        # 1. Definir los hechos (facts) del entorno a partir de las entradas del usuario
-        facts = {
-            "mood": mood.value,
-            "duration": duration.value
-        }
+        # 1. Definir los hechos (facts) del entorno directamente desde la entrada
+        facts = user_facts
 
         # 2. Fase de emparejamiento (Pattern Matching): Ver qué reglas se activan
         fired_rules = []
@@ -70,10 +67,8 @@ class VacationExpertSystem:
                     tag_weights[tag] = tag_weights.get(tag, 0.0) + weight_modifier
 
         # 3. Fase de Resolución de Conflictos y Evaluación de Destinos
-        # Si ninguna regla se activa, se asigna una pequeña puntuación base si coincide
-        # directamente alguna etiqueta con el estado de ánimo (búsqueda heurística básica)
+        # Si ninguna regla se activa, intentamos una heurística basada en el "mood" si fue proporcionado
         if not tag_weights:
-            # Mapeo semántico simple para relacionar estados de ánimo con etiquetas de destinos
             fallback_mappings = {
                 "relajado": ["relajado", "relajacion", "tranquilidad"],
                 "estresado": ["estresado", "relajacion", "tranquilidad"],
@@ -81,7 +76,10 @@ class VacationExpertSystem:
                 "aventurero": ["aventurero", "aventura", "naturaleza", "montaña"],
                 "aburrido": ["aburrido", "diversion", "cultura", "ciudad"]
             }
-            tags_para_buscar = fallback_mappings.get(mood.value, [mood.value])
+            # Intentamos obtener el mood del diccionario de hechos
+            mood_val = facts.get("mood", "")
+            tags_para_buscar = fallback_mappings.get(mood_val, [mood_val] if mood_val else ["general"])
+            
             for tag in tags_para_buscar:
                 tag_weights[tag] = 1.0
 
@@ -90,7 +88,6 @@ class VacationExpertSystem:
         for dest in self._destinations:
             score = 0.0
             matched_tags = []
-            explanations_list = []
 
             # Evaluamos cuántas etiquetas del destino coinciden con las recomendadas por las reglas
             for tag in dest.tags:
@@ -109,7 +106,8 @@ class VacationExpertSystem:
                         f"{', '.join(activated_rules_desc)}. Coincidencias de etiquetas: {matched_tags}."
                     )
                 else:
-                    explanation = f"Recomendación básica basada en tu estado de ánimo '{mood.value}'."
+                    mood_val = facts.get("mood", "desconocido")
+                    explanation = f"Recomendación básica basada en heurística general." if not mood_val else f"Recomendación básica basada en tu estado de ánimo '{mood_val}'."
 
                 recommendations.append(
                     Recommendation(
@@ -124,13 +122,12 @@ class VacationExpertSystem:
         recommendations.sort(key=lambda r: r.score, reverse=True)
         return recommendations
 
-    def _rule_applies(self, rule: Dict[str, Any], facts: Dict[str, str]) -> bool:
+    def _rule_applies(self, rule: Dict[str, Any], facts: Dict[str, Any]) -> bool:
         """
         Determina si una regla de producción se activa con los hechos actuales.
-        Soporta reglas cuyas condiciones requieran mood, duration o ambos.
         
         :param rule: Diccionario con la estructura de la regla.
-        :param facts: Diccionario con los hechos del usuario (mood y duration).
+        :param facts: Diccionario con los hechos del usuario.
         :return: True si se cumplen todas las condiciones especificadas, False de lo contrario.
         """
         conditions = rule.get("conditions", {})
@@ -142,3 +139,4 @@ class VacationExpertSystem:
             if facts.get(key) != expected_value:
                 return False
         return True
+        

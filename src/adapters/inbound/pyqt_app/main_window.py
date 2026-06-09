@@ -242,19 +242,31 @@ class MainWindow(QMainWindow):
 
     def _ir_a_destinos(self, duracion):
         self.duracion = duracion
-        # Llamar al motor de inferencia real con las selecciones del usuario
-        mood_str, duration_str = self._mapear_selecciones()
+        
+        # 1. Obtener el diccionario de hechos (Fase 4 del MVP)
+        user_facts, mood_str, duration_str = self._mapear_selecciones()
+        
+        # 2. Llamar al motor de inferencia real pasándole el diccionario
         try:
-            self.recomendaciones = self._use_case.obtener_recomendacion(mood_str, duration_str)
+            # Aquí se corrige el antiguo typo "obtener_recommendacion"
+            self.recomendaciones = self._use_case.obtener_recomendacion(user_facts)
+            
+            # (Opcional) Imprimir en terminal para debugging
+            print(f"Hechos enviados al motor: {user_facts}")
+            print(f"Destinos inferidos: {len(self.recomendaciones)}")
+            
         except Exception as err:
             print(f"[ADVERTENCIA] Error en inferencia: {err}")
             self.recomendaciones = []
+            
+        # 3. Poblar la pantalla de destinos (Tu lógica ya hace esto muy bien)
         self._poblar_destinos_dinamicos()
         self.stack.setCurrentWidget(self.destinos_page)
 
     def _mapear_selecciones(self):
-        """Mapea las selecciones conversacionales de la GUI a los tipos del dominio (mood, duration)."""
-        # El 'sentimiento' que eligió el usuario es el indicador principal del Mood
+        """Mapea todas las selecciones conversacionales de la GUI a un diccionario de hechos para el motor."""
+        
+        # 1. Mapeo de Sentimiento -> Mood (Mantenemos tu lógica original como base)
         mapa_sentimiento = {
             'Relajación':                 'relajado',
             'Contacto con la naturaleza': 'aventurero',
@@ -262,7 +274,6 @@ class MainWindow(QMainWindow):
             'Cultura e historia':         'aburrido',
             'Diversión nocturna':         'aburrido',
         }
-        # Si no eligió sentimiento, usamos el tipo de escapada como fallback
         mapa_escapada = {
             'Escapada romántica': 'relajado',
             'Aventura juntos':    'aventurero',
@@ -274,18 +285,44 @@ class MainWindow(QMainWindow):
             or mapa_escapada.get(self.tipo_escapada, 'relajado')
         )
 
+        # 2. Mapeo de Duración -> TimeDuration
         mapa_duracion = {
             'Fin de semana (2-3 días)': 'fin_de_semana',
             '4 a 7 días':               'una_semana',
             'Más de una semana':        'mas_de_una_semana',
         }
         duration_str = mapa_duracion.get(self.duracion, 'una_semana')
-        return mood_str, duration_str
+
+        # 3. Mapeo de Presupuesto
+        # Convertimos los textos de la interfaz a los valores que probablemente uses en el JSON
+        mapa_presupuesto = {
+            'Menos de $5,000':        'Bajo',
+            '$5,000 - $15,000':       'Medio',
+            'Más de $15,000':         'Alto'
+        }
+        presupuesto_str = mapa_presupuesto.get(self.presupuesto, 'Medio')
+
+        # 4. Construimos el diccionario de hechos completo para la Fase 4
+        user_facts = {
+            "mood": mood_str,
+            "duration": duration_str,
+            "presupuesto": presupuesto_str,
+            "clima": self.clima.lower() if self.clima and self.clima != 'No importa' else None,
+            "tipo_viaje": self.tipo_viaje.lower() if self.tipo_viaje else None
+        }
+
+        # Limpiar el diccionario de valores None
+        user_facts = {k: v for k, v in user_facts.items() if v is not None}
+        
+        return user_facts, mood_str, duration_str # Devolvemos los strings extra para que tu UI no se rompa
 
     def _poblar_destinos_dinamicos(self):
         """Limpia y repuebla las tarjetas de destinos con resultados del motor de inferencia."""
-        # Actualizar el subtítulo con el contexto detectado por el motor
-        mood_str, duration_str = self._mapear_selecciones()
+        
+        # --- CAMBIA ESTA LÍNEA ---
+        user_facts, mood_str, duration_str = self._mapear_selecciones()
+        # -------------------------
+        
         mapa_mood_legible = {
             'relajado':   '🌴 Relajación',
             'aventurero': '⛰️ Aventura',
@@ -293,6 +330,7 @@ class MainWindow(QMainWindow):
             'estresado':  '🌿 Tranquilidad',
             'cansado':    '🛌 Descanso',
         }
+        
         mapa_dur_legible = {
             'fin_de_semana':     'fin de semana',
             'una_semana':        '4–7 días',

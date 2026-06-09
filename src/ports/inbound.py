@@ -14,7 +14,7 @@ DOCENCIA (Para el equipo de desarrollo universitario):
 """
 
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Dict, Any
 from src.domain.models import Recommendation
 
 class RecommendationUseCase(ABC):
@@ -25,13 +25,12 @@ class RecommendationUseCase(ABC):
     """
 
     @abstractmethod
-    def obtener_recomendacion(self, mood_str: str, duration_str: str) -> List[Recommendation]:
+    def obtener_recomendacion(self, user_facts: Dict[str, Any]) -> List[Recommendation]:
         """
-        Solicita una lista de destinos recomendados en base a textos planos
-        enviados por el usuario desde cualquier interfaz de usuario (adaptador de entrada).
+        Solicita una lista de destinos recomendados en base a un diccionario dinámico
+        de hechos (preferencias) enviados por el usuario desde cualquier interfaz de usuario.
         
-        :param mood_str: Cadena de texto correspondiente al estado de ánimo.
-        :param duration_str: Cadena de texto correspondiente al tiempo libre.
+        :param user_facts: Diccionario con las selecciones del usuario (ej. presupuesto, clima).
         :return: Lista de objetos Recommendation ordenados por afinidad.
         """
         pass

@@ -12,6 +12,7 @@ DOCENCIA (Para el equipo de desarrollo universitario):
 """
 
 import sys
+from typing import Dict, Any
 from src.ports.inbound import RecommendationUseCase
 from src.domain.models import Mood, TimeDuration
 from src.domain.exceptions import DomainError
@@ -79,11 +80,14 @@ class CLIAdapter:
             print("\nProcesando hechos en el motor de inferencia...")
             
             try:
-                # Invocamos el caso de uso a través de la abstracción
-                recomendaciones = self._use_case.obtener_recomendacion(
-                    mood_str=mood_seleccionado,
-                    duration_str=duracion_seleccionada
-                )
+                # FASE 4: Empaquetar los datos en el diccionario dinámico de hechos
+                user_facts: Dict[str, Any] = {
+                    "mood": mood_seleccionado,
+                    "duration": duracion_seleccionada
+                }
+
+                # Invocamos el caso de uso pasando el diccionario completo
+                recomendaciones = self._use_case.obtener_recomendacion(user_facts)
 
                 if not recomendaciones:
                     print("\n[!] El sistema experto no encontró ningún destino que coincida con tus criterios.")
