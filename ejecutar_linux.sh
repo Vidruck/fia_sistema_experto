@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ===========================================================================
 #  ViajaIA — Lanzador inteligente para Linux
-#  Detecta dependencias, crea el entorno virtual y ejecuta la aplicación.
+#  Compatible con: Debian/Ubuntu/Mint · Arch/Manjaro/EndeavourOS · Fedora/RHEL
+#  Sesiones: X11 · Wayland (nativo) · XWayland (fallback)
 #  Uso:
 #    ./ejecutar_linux.sh              → instala (si es necesario) y ejecuta
 #    ./ejecutar_linux.sh --reinstalar → borra el entorno y reinstala desde cero
@@ -44,8 +45,54 @@ if [[ "${1:-}" == "--reinstalar" ]]; then
     ok "Entorno eliminado. Se instalará desde cero."
 fi
 
-# ── Verificar Python 3 ───────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+# BLOQUE 1: Detectar sesión gráfica (Wayland / X11)
+# ════════════════════════════════════════════════════════════════════════════
+log "Detectando tipo de sesión gráfica..."
+
+SESSION_TYPE="${XDG_SESSION_TYPE:-x11}"
+IS_WAYLAND=false
+if [[ -n "${WAYLAND_DISPLAY:-}" ]] || [[ "$SESSION_TYPE" == "wayland" ]]; then
+    IS_WAYLAND=true
+    ok "Sesión Wayland detectada (WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-?})"
+else
+    ok "Sesión X11 detectada (DISPLAY=${DISPLAY:-?})"
+fi
+
+# ════════════════════════════════════════════════════════════════════════════
+# BLOQUE 2: Detectar gestor de paquetes y distribución
+# ════════════════════════════════════════════════════════════════════════════
+log "Detectando distribución de Linux..."
+
+PKG_MGR=""
+DISTRO_FAMILY=""
+
+if command -v pacman &>/dev/null; then
+    PKG_MGR="pacman"
+    DISTRO_FAMILY="arch"
+    ok "Familia Arch detectada (pacman)"
+elif command -v apt-get &>/dev/null; then
+    PKG_MGR="apt-get"
+    DISTRO_FAMILY="debian"
+    ok "Familia Debian/Ubuntu detectada (apt-get)"
+elif command -v dnf &>/dev/null; then
+    PKG_MGR="dnf"
+    DISTRO_FAMILY="fedora"
+    ok "Familia Fedora/RHEL detectada (dnf)"
+elif command -v zypper &>/dev/null; then
+    PKG_MGR="zypper"
+    DISTRO_FAMILY="suse"
+    ok "Familia openSUSE detectada (zypper)"
+else
+    warn "No se detectó un gestor de paquetes conocido. Se intentará solo con pip."
+    DISTRO_FAMILY="unknown"
+fi
+
+# ════════════════════════════════════════════════════════════════════════════
+# BLOQUE 3: Verificar Python 3
+# ════════════════════════════════════════════════════════════════════════════
 log "Verificando Python..."
+
 PYTHON_CMD=""
 PY_MINOR_DETECTED=0
 for cmd in python3 python; do
@@ -66,133 +113,204 @@ done
 if [[ -z "$PYTHON_CMD" ]]; then
     error "Se requiere Python 3.10 o superior."
     echo ""
-    echo "  Instalar en Ubuntu/Debian:"
-    echo "    sudo apt update && sudo apt install -y python3 python3-pip python3-venv"
-    echo ""
-    echo "  Instalar en Fedora/RHEL:"
-    echo "    sudo dnf install -y python3 python3-pip"
+    case "$DISTRO_FAMILY" in
+        arch)    echo "  sudo pacman -S python" ;;
+        debian)  echo "  sudo apt install python3 python3-pip python3-venv" ;;
+        fedora)  echo "  sudo dnf install python3 python3-pip" ;;
+        suse)    echo "  sudo zypper install python3 python3-pip" ;;
+        *)       echo "  Instala Python 3.10+ desde: https://python.org/downloads" ;;
+    esac
     echo ""
     exit 1
 fi
 
-# ── Advertencia si Python >= 3.13 ────────────────────────────────────────────
-# PyQt6 puede no tener wheel pre-compilada para versiones muy nuevas de Python.
-# En ese caso se usará PyQt6 del sistema (apt) en lugar de pip.
+# En Arch siempre usamos packages del sistema (Arch actualiza Python y PyQt6 juntos)
 USE_SYSTEM_PYQT=false
-if [[ "$PY_MINOR_DETECTED" -ge 13 ]]; then
-    warn "Python 3.${PY_MINOR_DETECTED} detectado. PyQt6 puede no tener wheel para esta versión."
-    warn "Se intentará instalar PyQt6 desde el gestor de paquetes del sistema (más rápido y seguro)."
+if [[ "$DISTRO_FAMILY" == "arch" ]]; then
+    USE_SYSTEM_PYQT=true
+    ok "Arch Linux: se usará PyQt6 del sistema para garantizar compatibilidad"
+elif [[ "$PY_MINOR_DETECTED" -ge 13 ]]; then
+    warn "Python 3.${PY_MINOR_DETECTED}: sin wheel de PyQt6 en PyPI → se usará PyQt6 del sistema"
     USE_SYSTEM_PYQT=true
 fi
 
-# ── Verificar python3-venv ───────────────────────────────────────────────────
-if ! "$PYTHON_CMD" -c "import venv" 2>/dev/null; then
-    warn "Módulo 'venv' no disponible. Intentando instalar..."
-    if command -v apt-get &>/dev/null; then
-        sudo apt-get install -y python3-venv python3-pip
-    elif command -v dnf &>/dev/null; then
-        sudo dnf install -y python3-pip
-    else
-        error "Instala python3-venv manualmente y vuelve a ejecutar."
-        exit 1
-    fi
-fi
+# ════════════════════════════════════════════════════════════════════════════
+# BLOQUE 4: Instalar dependencias del sistema según distro
+# ════════════════════════════════════════════════════════════════════════════
+_instalar_paquetes_sistema() {
+    log "Instalando dependencias del sistema..."
 
-# ── Instalar PyQt6 desde el sistema si Python es demasiado nuevo ─────────────
+    case "$DISTRO_FAMILY" in
+        arch)
+            # Arch: python-pyqt6 + qt6-wayland (para soporte Wayland nativo)
+            local pkgs=("python-pyqt6" "qt6-wayland" "qt6-base")
+            local faltantes=()
+            for pkg in "${pkgs[@]}"; do
+                if ! pacman -Qq "$pkg" &>/dev/null; then
+                    faltantes+=("$pkg")
+                fi
+            done
+            if [[ ${#faltantes[@]} -gt 0 ]]; then
+                warn "Instalando: ${faltantes[*]}"
+                sudo pacman -S --noconfirm --needed "${faltantes[@]}"
+            fi
+            ok "Paquetes Arch instalados: python-pyqt6, qt6-wayland"
+            ;;
+
+        debian)
+            # Debian/Ubuntu: python3-pyqt6 + librerías gráficas + qt6-wayland
+            local apt_pkgs=("python3-pyqt6" "libxcb-xinerama0" "libgl1"
+                            "libxkbcommon-x11-0" "libdbus-1-3")
+            # qt6-wayland puede no estar disponible en versiones viejas de Ubuntu
+            if apt-cache show qt6-wayland &>/dev/null 2>&1; then
+                apt_pkgs+=("qt6-wayland")
+            fi
+            local apt_faltantes=()
+            for pkg in "${apt_pkgs[@]}"; do
+                if ! dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
+                    apt_faltantes+=("$pkg")
+                fi
+            done
+            if [[ ${#apt_faltantes[@]} -gt 0 ]]; then
+                warn "Instalando: ${apt_faltantes[*]}"
+                sudo apt-get install -y "${apt_faltantes[@]}"
+            fi
+            ok "Paquetes Debian/Ubuntu instalados"
+            ;;
+
+        fedora)
+            local dnf_pkgs=("python3-pyqt6" "qt6-qtwayland")
+            sudo dnf install -y --skip-unavailable "${dnf_pkgs[@]}" 2>/dev/null || \
+                warn "Instalación parcial de paquetes Fedora"
+            ok "Paquetes Fedora instalados"
+            ;;
+
+        suse)
+            sudo zypper install -y python3-PyQt6 qt6-wayland 2>/dev/null || \
+                warn "Instalación parcial de paquetes openSUSE"
+            ok "Paquetes openSUSE instalados"
+            ;;
+
+        *)
+            warn "Distro no reconocida. Saltando instalación de paquetes del sistema."
+            ;;
+    esac
+}
+
 if [[ "$USE_SYSTEM_PYQT" == true ]]; then
-    log "Instalando PyQt6 y librerías gráficas desde el sistema..."
-    if command -v apt-get &>/dev/null; then
-        sudo apt-get install -y \
-            python3-pyqt6 \
-            python3-pyqt6.qtwidgets \
-            libxcb-xinerama0 \
-            libgl1 \
-            libxkbcommon-x11-0 \
-            libdbus-1-3 2>/dev/null && ok "PyQt6 del sistema instalado" \
-            || warn "Instalación parcial. Continuando..."
-    else
-        warn "Sistema no es Debian/Ubuntu. Intentando con pip de todas formas..."
-        USE_SYSTEM_PYQT=false
-    fi
+    _instalar_paquetes_sistema
 else
-    # ── Verificar dependencias gráficas para distros Debian/Ubuntu ───────────
-    log "Verificando dependencias del sistema para la interfaz gráfica..."
-    MISSING_PKGS=()
-    for lib in libxcb-xinerama0 libgl1 libxkbcommon-x11-0 libdbus-1-3; do
-        if command -v dpkg &>/dev/null && ! dpkg -l "$lib" 2>/dev/null | grep -q "^ii"; then
-            MISSING_PKGS+=("$lib")
+    # Solo instalar librerías gráficas (sin PyQt6 del sistema)
+    log "Verificando librerías gráficas del sistema..."
+    if [[ "$DISTRO_FAMILY" == "debian" ]]; then
+        MISSING=()
+        for lib in libxcb-xinerama0 libgl1 libxkbcommon-x11-0; do
+            dpkg -l "$lib" 2>/dev/null | grep -q "^ii" || MISSING+=("$lib")
+        done
+        if [[ ${#MISSING[@]} -gt 0 ]]; then
+            sudo apt-get install -y "${MISSING[@]}" 2>/dev/null || true
         fi
-    done
-    if [[ ${#MISSING_PKGS[@]} -gt 0 ]]; then
-        warn "Instalando librerías gráficas del sistema..."
-        sudo apt-get install -y "${MISSING_PKGS[@]}" 2>/dev/null || \
-            warn "No se pudieron instalar algunas librerías. La GUI podría no funcionar."
-    else
-        ok "Librerías del sistema OK"
     fi
+    ok "Librerías del sistema verificadas"
 fi
 
-# ── Crear o reutilizar entorno virtual ───────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+# BLOQUE 5: Crear / reutilizar entorno virtual
+# ════════════════════════════════════════════════════════════════════════════
 if [[ ! -d "$VENV_DIR" ]]; then
-    log "Creando entorno virtual en .venv_viajaia/ ..."
 
     if [[ "$USE_SYSTEM_PYQT" == true ]]; then
-        # Con --system-site-packages PyQt6 del sistema queda accesible dentro del venv
+        log "Creando entorno virtual con acceso a PyQt6 del sistema..."
         "$PYTHON_CMD" -m venv --system-site-packages "$VENV_DIR"
-        ok "Entorno virtual creado (con acceso a PyQt6 del sistema)"
+        ok "Entorno virtual creado (--system-site-packages)"
 
-        log "Instalando dependencias adicionales (pytest y otras)..."
-        # Limpiar cache corrupta antes de instalar
+        log "Instalando dependencias adicionales (pytest)..."
         "$VENV_DIR/bin/pip" cache purge 2>/dev/null || true
-        # Instalar todo excepto PyQt6 (ya viene del sistema)
-        # Usamos --prefer-binary y --no-cache-dir para evitar compilaciones lentas
-        "$VENV_DIR/bin/pip" install \
-            --prefer-binary \
-            --no-cache-dir \
-            pytest==8.0.0
-        ok "Dependencias adicionales instaladas"
+        "$VENV_DIR/bin/pip" install --prefer-binary --no-cache-dir pytest==8.0.0
+        ok "pytest instalado"
+
     else
+        log "Creando entorno virtual aislado..."
         "$PYTHON_CMD" -m venv "$VENV_DIR"
 
-        log "Instalando dependencias (PyQt6 puede tardar 2-3 minutos en la primera vez)..."
-        echo "  → Limpiando caché de pip..."
+        log "Instalando dependencias de pip (muestra progreso)..."
         "$VENV_DIR/bin/pip" cache purge 2>/dev/null || true
-
-        echo "  → Actualizando pip..."
         "$VENV_DIR/bin/pip" install --upgrade pip --no-cache-dir --quiet
-
-        echo "  → Instalando PyQt6 y pytest (muestra progreso)..."
-        # --prefer-binary: prefiere wheels pre-compiladas, evita compilar desde fuente
-        # --no-cache-dir:  evita los "Cache entry deserialization failed"
-        "$VENV_DIR/bin/pip" install \
-            --prefer-binary \
-            --no-cache-dir \
-            -r "$REQ_FILE"
-        ok "Dependencias instaladas correctamente"
+        "$VENV_DIR/bin/pip" install --prefer-binary --no-cache-dir -r "$REQ_FILE"
+        ok "Dependencias pip instaladas"
     fi
+
 else
     ok "Entorno virtual existente reutilizado (.venv_viajaia/)"
-    # Verificar que PyQt6 esté disponible
     if ! "$VENV_DIR/bin/python" -c "import PyQt6" 2>/dev/null; then
-        warn "PyQt6 no encontrado. Reinstalando dependencias..."
-        "$VENV_DIR/bin/pip" install \
-            --prefer-binary \
-            --no-cache-dir \
-            -r "$REQ_FILE"
+        warn "PyQt6 no encontrado. Reinstalando..."
+        if [[ "$USE_SYSTEM_PYQT" == true ]]; then
+            _instalar_paquetes_sistema
+        else
+            "$VENV_DIR/bin/pip" install --prefer-binary --no-cache-dir -r "$REQ_FILE"
+        fi
         ok "Dependencias reinstaladas"
     fi
 fi
 
-# ── Verificación rápida antes de lanzar ──────────────────────────────────────
-log "Verificando integridad antes de lanzar..."
-if "$VENV_DIR/bin/python" -c "import PyQt6; print('  ✅ PyQt6 OK')" 2>/dev/null; then
-    true
+# ════════════════════════════════════════════════════════════════════════════
+# BLOQUE 6: Configurar plataforma Qt según sesión gráfica
+# ════════════════════════════════════════════════════════════════════════════
+log "Configurando plataforma Qt para la sesión actual..."
+
+if [[ "$IS_WAYLAND" == true ]]; then
+    # Verificar que el plugin de Wayland para Qt6 esté disponible
+    QT_WAYLAND_OK=false
+
+    case "$DISTRO_FAMILY" in
+        arch)
+            pacman -Qq qt6-wayland &>/dev/null && QT_WAYLAND_OK=true ;;
+        debian)
+            (dpkg -l qt6-wayland 2>/dev/null | grep -q "^ii" || \
+             ls /usr/lib/*/qt6/plugins/platforms/libqwayland*.so 2>/dev/null | head -1 | grep -q .) \
+            && QT_WAYLAND_OK=true ;;
+        fedora)
+            rpm -q qt6-qtwayland &>/dev/null && QT_WAYLAND_OK=true ;;
+        *)
+            # Intento genérico: buscar la librería del plugin
+            find /usr -name "libqwayland*.so" 2>/dev/null | grep -q . && QT_WAYLAND_OK=true ;;
+    esac
+
+    if [[ "$QT_WAYLAND_OK" == true ]]; then
+        export QT_QPA_PLATFORM=wayland
+        # Necesario en algunos compositores (GNOME/KDE Wayland) para que Qt6 no use decoraciones propias
+        export QT_WAYLAND_DISABLE_WINDOWDECORATION=1
+        ok "Plataforma Qt: wayland (nativo)"
+    else
+        warn "Plugin Qt6-Wayland no encontrado → usando XWayland como fallback"
+        warn "Para instalarlo:"
+        case "$DISTRO_FAMILY" in
+            arch)   warn "  sudo pacman -S qt6-wayland" ;;
+            debian) warn "  sudo apt install qt6-wayland" ;;
+            fedora) warn "  sudo dnf install qt6-qtwayland" ;;
+        esac
+        export QT_QPA_PLATFORM=xcb
+        ok "Plataforma Qt: xcb (XWayland fallback)"
+    fi
 else
-    warn "PyQt6 no disponible. La app intentará arrancar en modo CLI."
+    export QT_QPA_PLATFORM=xcb
+    ok "Plataforma Qt: xcb (X11)"
 fi
 
-# ── Lanzar la aplicación ─────────────────────────────────────────────────────
+# Variables adicionales de compatibilidad Qt6
+export QT_AUTO_SCREEN_SCALE_FACTOR=1
+export PYTHONDONTWRITEBYTECODE=1
+
+# ════════════════════════════════════════════════════════════════════════════
+# BLOQUE 7: Verificación rápida y lanzamiento
+# ════════════════════════════════════════════════════════════════════════════
+log "Verificando integridad..."
+"$VENV_DIR/bin/python" -c "import PyQt6; print('  ✅ PyQt6 importado OK')" 2>/dev/null \
+    || warn "No se pudo importar PyQt6 — la app intentará arrancar en modo CLI"
+
+echo ""
 log "Iniciando ViajaIA... 🌴"
+echo -e "  Sesión: ${BOLD}$SESSION_TYPE${RESET}  |  Qt platform: ${BOLD}${QT_QPA_PLATFORM}${RESET}"
 echo ""
 cd "$SCRIPT_DIR"
 "$VENV_DIR/bin/python" src/main.py "$@"
