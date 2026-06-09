@@ -257,7 +257,15 @@ class MainWindow(QMainWindow):
             'Familia': '👨\u200d👩\u200d👧  Familia',
             'Amigos':  '👥  Amigos',
         }
+        # Adaptar el título de la pregunta según con quién viaja
+        titulos = {
+            'Pareja':  '¿Qué tipo de escapada\nromántica prefieren?',
+            'Solo':    '¿Qué tipo de viaje\nte llama más?',
+            'Familia': '¿Qué tipo de aventura\nprefieren en familia?',
+            'Amigos':  '¿Qué tipo de aventura\nprefieren con amigos?',
+        }
         self.lbl_categoria_romantica.setText(iconos.get(tipo, tipo))
+        self.lbl_titulo_romantica.setText(titulos.get(tipo, '¿Qué tipo de viaje prefieren?'))
         self.stack.setCurrentWidget(self.romantic_page)
 
     def _ir_a_presupuesto(self, escapada):
@@ -637,9 +645,9 @@ class MainWindow(QMainWindow):
             border-radius:15px; font-size:16px; font-weight:bold;
         """)
 
-        titulo = QLabel("¿Qué tipo de escapada\nromántica prefieren?")
-        titulo.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        titulo.setStyleSheet("color:white; font-size:28px; font-weight:bold;")
+        self.lbl_titulo_romantica = QLabel("¿Qué tipo de escapada\nromántica prefieren?")
+        self.lbl_titulo_romantica.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_titulo_romantica.setStyleSheet("color:white; font-size:28px; font-weight:bold;")
 
         _btn_style = """
             QPushButton { background:#2b2d42; color:white; border:1px solid #11c5c6;
@@ -667,7 +675,7 @@ class MainWindow(QMainWindow):
         layout.addSpacing(10)
         layout.addWidget(self.lbl_categoria_romantica)
         layout.addSpacing(25)
-        layout.addWidget(titulo)
+        layout.addWidget(self.lbl_titulo_romantica)
         layout.addSpacing(35)
         layout.addLayout(fila)
         layout.addStretch()
