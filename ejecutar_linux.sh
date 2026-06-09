@@ -313,4 +313,12 @@ log "Iniciando ViajaIA... 🌴"
 echo -e "  Sesión: ${BOLD}$SESSION_TYPE${RESET}  |  Qt platform: ${BOLD}${QT_QPA_PLATFORM}${RESET}"
 echo ""
 cd "$SCRIPT_DIR"
-"$VENV_DIR/bin/python" src/main.py "$@"
+
+# Filtrar flags propios del script (--reinstalar) antes de pasar args a Python.
+# main.py solo acepta: --cli | --gui
+PYTHON_ARGS=()
+for arg in "$@"; do
+    [[ "$arg" != "--reinstalar" ]] && PYTHON_ARGS+=("$arg")
+done
+
+"$VENV_DIR/bin/python" src/main.py "${PYTHON_ARGS[@]}"
